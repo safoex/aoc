@@ -64,11 +64,12 @@ class ObjectRenderer:
         # img[left,:] = 0
         # img[right,:] = 0
 
-        img = Image.fromarray(color)
+        final_box = (top, left, bottom, right)
 
-        crop = img.crop((top, left, bottom, right))
-        crop = crop.resize((target_res, target_res))
-        return np.array(crop), depth
+        return [
+            np.array(Image.fromarray(img).crop(final_box).resize((target_res, target_res)), dtype=np.float32)
+            for img in (color, depth)
+        ]
 
     def test_show(self, color, depth):
         import matplotlib.pyplot as plt
@@ -92,7 +93,8 @@ if __name__ == "__main__":
     # Show the images
     import  time
     start = time.clock()
-    for i in range(1000):
+    for i in range(10):
         color, depth = objren.render_and_crop(special_ortho_group.rvs(3))
     fin = time.clock()
     print(fin - start)
+    objren.test_show(color, depth)

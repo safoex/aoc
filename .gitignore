@@ -3,3 +3,6 @@ venv/*
 *.json
 *.log
 model/reconstructions/
+*.npy
+model/so3/__pycache__/
+model/so3/test_save/
