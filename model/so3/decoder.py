@@ -40,14 +40,14 @@ class Decoder(nn.Module):
 
     def forward(self, x):
         x = self.fc(x)
-        x = F.leaky_relu(x, 0.2)
+        x = F.relu(x)
         x = x.view((-1, self.last_filter, self.image_size // self.stride_factor, self.image_size // self.stride_factor))
 
         for conv, bn, up in zip(self.deconvs[:-1], self.bns, self.ups[:-1]):
             x = up(x)
             x = conv(x)
-            x = F.leaky_relu(x, 0.2)
-            x = bn(x)
+            x = F.relu(x)
+            # x = bn(x)
 
         x = self.ups[-1](x)
         x = self.deconvs[-1](x)

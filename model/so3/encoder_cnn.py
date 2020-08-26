@@ -31,11 +31,11 @@ class EncoderCNN(nn.Module):
     def forward(self, x):
         for conv, bn in zip(self.convs[:-1], self.bns):
             x = conv(x)
-            x = bn(x)
-            x = F.leaky_relu(x, 0.2)
+            # x = bn(x)
+            x = F.relu(x)
 
         x = self.convs[-1](x)
-        x = F.leaky_relu(x, 0.2)
+        x = F.relu(x)
         x = self.flatten(x)
         return self.fc(x)
 
