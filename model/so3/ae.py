@@ -31,7 +31,7 @@ class AE(nn.Module):
 
 def train_ae(ae, dataset, iters=5000, batch_size=32, save_every=0, save_path=None):
     ts = TimeSeries('Training ae', iters)
-    opt_ae = optim.Adam(ae.parameters())
+    opt_ae = optim.Adam(ae.parameters(), lr=2e-4)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
     i = 0
@@ -43,8 +43,10 @@ def train_ae(ae, dataset, iters=5000, batch_size=32, save_every=0, save_path=Non
                 break
             ae.train()
             x, y = [o.cuda() for o in batch]
-
+            # y = y.type(torch.cuda.FloatTensor)
+            # x = torch.cat((y, y, y), dim=1)
             x_hat = ae.forward(x)
+
             bootstrap_ratio = 4
             if bootstrap_ratio > 1:
                 mse = torch.flatten((x_hat - x) ** 2)
@@ -63,7 +65,8 @@ def train_ae(ae, dataset, iters=5000, batch_size=32, save_every=0, save_path=Non
                 img_tensor_output = x_hat[0,:,:,:].cpu()
                 img_tensor_input = x[0,:,:,:].cpu()
                 img_tensor = torch.cat((img_tensor_input, img_tensor_output), 2)
-                im = transforms.ToPILImage()(255.0 * img_tensor).convert("RGB")
+                print(torch.mean(img_tensor_input))
+                im = transforms.ToPILImage()(img_tensor).convert("RGB")
                 im.save(save_path)
                 if print_numbers == 0 and i > 1000:
                     print(img_tensor_output[0,42:86:4, 42:86:4])
@@ -75,7 +78,7 @@ def train_ae(ae, dataset, iters=5000, batch_size=32, save_every=0, save_path=Non
 if __name__ == "__main__":
     dataset = RenderedDataset()
     dataset.load_dataset('test_save')
-    ae = AE(128, 256, (16, 32, 32, 64))
+    ae = AE(128, 32, (16, 32, 32, 64))
     ae.cuda()
     summary(ae, (3, 128, 128))
     train_ae(ae, dataset, iters=30000, save_every=30, save_path='test_save/recons.jpg')
