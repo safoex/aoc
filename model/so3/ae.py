@@ -62,17 +62,13 @@ def train_ae(ae, dataset, iters=5000, batch_size=32, save_every=0, save_path=Non
             ae.eval()
             ts.print_every(10)
             if save_every != 0 and save_path is not None and i % save_every == 0:
-                img_tensor_output = x_hat[0,:,:,:].cpu()
-                img_tensor_input = x[0,:,:,:].cpu()
-                img_tensor = torch.cat((img_tensor_input, img_tensor_output), 2)
-                print(torch.mean(img_tensor_input))
+                side = 4
+                img_tensor_inputs = [torch.cat([x[i, :, :, :].cpu() for i in range(j, j+side)], 1) for j in range(2)]
+                img_tensor_outputs = [torch.cat([x_hat[i, :, :, :].cpu() for i in range(j, j+side)], 1) for j in range(2)]
+
+                img_tensor = torch.cat(img_tensor_inputs + img_tensor_outputs, 2)
                 im = transforms.ToPILImage()(img_tensor).convert("RGB")
                 im.save(save_path)
-                if print_numbers == 0 and i > 1000:
-                    print(img_tensor_output[0,42:86:4, 42:86:4])
-                    print(img_tensor_output[1,42:86:4, 42:86:4])
-                    print(img_tensor_output[2,42:86:4, 42:86:4])
-                    print_numbers = 1
 
 
 if __name__ == "__main__":
