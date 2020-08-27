@@ -1,11 +1,12 @@
-
 # Render offscreen -- make sure to set the PyOpenGL platform
 import os
+
 os.environ["PYOPENGL_PLATFORM"] = "egl"
 import numpy as np
 import trimesh
 import pyrender
 from PIL import Image
+
 
 class ObjectRenderer:
     def __init__(self, path, camera_dist=0.5):
@@ -23,7 +24,7 @@ class ObjectRenderer:
         ])
         self.scene.add(self.camera, pose=camera_pose)
 
-        light = pyrender.SpotLight(color=np.ones(3), intensity=3.0, innerConeAngle=np.pi/16.0)
+        light = pyrender.SpotLight(color=np.ones(3), intensity=3.0, innerConeAngle=np.pi / 16.0)
         self.scene.add(light, pose=camera_pose)
 
         self.renderer = pyrender.OffscreenRenderer(640, 640)
@@ -48,7 +49,7 @@ class ObjectRenderer:
         bbox = self.bbox(depth)
         row_center = int(np.mean(bbox[:2]))
         col_center = int(np.mean(bbox[2:]))
-        widest = max(bbox[1]-bbox[0], bbox[3] - bbox[2])
+        widest = max(bbox[1] - bbox[0], bbox[3] - bbox[2])
         half_side = int((widest * 1.2) / 2)
         left = row_center - half_side
         right = row_center + half_side
@@ -91,7 +92,8 @@ if __name__ == "__main__":
     # color, depth = objren.render(special_ortho_group.rvs(3))
     color, depth = objren.render_and_crop(special_ortho_group.rvs(3))
     # Show the images
-    import  time
+    import time
+
     start = time.clock()
     for i in range(10):
         color, depth = objren.render_and_crop(special_ortho_group.rvs(3))

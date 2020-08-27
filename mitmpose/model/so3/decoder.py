@@ -5,6 +5,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torchsummary import summary
 
+
 class Decoder(nn.Module):
     def __init__(self, image_size=128,
                  latent_size=128,

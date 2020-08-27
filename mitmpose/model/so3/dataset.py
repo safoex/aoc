@@ -1,12 +1,8 @@
 import numpy as np
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-from torchsummary import summary
-from torch.utils.data import Dataset, DataLoader
-from model.so3.grids import fibonacci_sphere_rot
-from model.so3.render import ObjectRenderer
+from torch.utils.data import Dataset
+from mitmpose.model.so3 import fibonacci_sphere_rot
+from mitmpose.model.so3 import ObjectRenderer
 
 
 class RenderedDataset(Dataset):
@@ -61,4 +57,3 @@ if __name__ == '__main__':
     ds = RenderedDataset(fuze_path, fibonacci_sphere_rot, 5000)
     ds.render_dataset()
     ds.save_dataset('test_save')
-

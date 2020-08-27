@@ -5,6 +5,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torchsummary import summary
 
+
 class EncoderCNN(nn.Module):
     def __init__(self, image_size=128,
                  latent_size=128,
@@ -38,6 +39,7 @@ class EncoderCNN(nn.Module):
         x = F.relu(x)
         x = self.flatten(x)
         return self.fc(x)
+
 
 if __name__ == "__main__":
     enc = EncoderCNN(filters=(32, 32, 64, 64))

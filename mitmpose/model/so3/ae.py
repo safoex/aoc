@@ -1,18 +1,15 @@
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torchsummary import summary
 
-from model.so3.encoder_cnn import EncoderCNN
-from model.so3.decoder import Decoder
-from model.so3.dataset import RenderedDataset
+from mitmpose.model.so3 import EncoderCNN
+from mitmpose.model.so3.decoder import Decoder
+from mitmpose.model.so3.dataset import RenderedDataset
 
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader
 from torchvision import transforms
-
-from PIL import Image
 
 from logutil import TimeSeries
 
@@ -28,6 +25,7 @@ class AE(nn.Module):
         z = self.encoder(x)
         x_hat = self.decoder(z)
         return x_hat
+
 
 def train_ae(ae, dataset, iters=5000, batch_size=32, save_every=0, save_path=None):
     ts = TimeSeries('Training ae', iters)
@@ -63,8 +61,10 @@ def train_ae(ae, dataset, iters=5000, batch_size=32, save_every=0, save_path=Non
             ts.print_every(10)
             if save_every != 0 and save_path is not None and i % save_every == 0:
                 side = 4
-                img_tensor_inputs = [torch.cat([x[i, :, :, :].cpu() for i in range(j, j+side)], 1) for j in range(2)]
-                img_tensor_outputs = [torch.cat([x_hat[i, :, :, :].cpu() for i in range(j, j+side)], 1) for j in range(2)]
+                img_tensor_inputs = [torch.cat([x[i, :, :, :].cpu() for i in range(j * side, (j + 1) * side)], 1) for j
+                                     in range(2)]
+                img_tensor_outputs = [torch.cat([x_hat[i, :, :, :].cpu() for i in range(j * side, (j + 1) * side)], 1)
+                                      for j in range(2)]
 
                 img_tensor = torch.cat(img_tensor_inputs + img_tensor_outputs, 2)
                 im = transforms.ToPILImage()(img_tensor).convert("RGB")
@@ -74,7 +74,7 @@ def train_ae(ae, dataset, iters=5000, batch_size=32, save_every=0, save_path=Non
 if __name__ == "__main__":
     dataset = RenderedDataset()
     dataset.load_dataset('test_save')
-    ae = AE(128, 32, (16, 32, 32, 64))
+    ae = AE(128, 32, (8, 16, 16, 32))
     ae.cuda()
     summary(ae, (3, 128, 128))
-    train_ae(ae, dataset, iters=30000, save_every=30, save_path='test_save/recons.jpg')
+    train_ae(ae, dataset, iters=3000, save_every=30, save_path='test_save/recons.jpg', batch_size=128)

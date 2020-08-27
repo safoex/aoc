@@ -2,7 +2,9 @@ venv/*
 .idea/*
 *.json
 *.log
-model/reconstructions/
+mitmpose/model/reconstructions/
 *.npy
-model/so3/__pycache__/
-model/so3/test_save/
+mitmpose/model/so3/__pycache__/
+mitmpose/model/so3/test_save/
+mitmpose/__pycache__/
+mitmpose/model/__pycache__/
