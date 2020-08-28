@@ -72,7 +72,7 @@ def train_ae(ae, dataset, iters=5000, batch_size=32, save_every=0, save_path=Non
 
 
 if __name__ == "__main__":
-    dataset = RenderedDataset()
+    dataset = RenderedDataset(500, 128)
     dataset.load_dataset('test_save')
     ae = AE(128, 32, (8, 16, 16, 32))
     ae.cuda()
