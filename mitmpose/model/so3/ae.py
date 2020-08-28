@@ -27,7 +27,7 @@ class AE(nn.Module):
         return x_hat
 
 
-def train_ae(ae, dataset, iters=5000, batch_size=32, save_every=0, save_path=None):
+def train_ae(ae, dataset, iters=5000, batch_size=32, save_every=0, save_path=None, print_every_seconds=10):
     ts = TimeSeries('Training ae', iters)
     opt_ae = optim.Adam(ae.parameters(), lr=2e-4)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=1)
@@ -58,7 +58,7 @@ def train_ae(ae, dataset, iters=5000, batch_size=32, save_every=0, save_path=Non
 
             opt_ae.step()
             ae.eval()
-            ts.print_every(10)
+            ts.print_every(print_every_seconds)
             if save_every != 0 and save_path is not None and i % save_every == 0:
                 side = 4
                 img_tensor_inputs = [torch.cat([x[i, :, :, :].cpu() for i in range(j * side, (j + 1) * side)], 1) for j
