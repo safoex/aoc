@@ -47,10 +47,14 @@ class RenderedDataset(Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
 
+        if not isinstance(self.inputs, torch.Tensor):
+            self.inputs = torch.from_numpy(self.inputs)
+            self.masks = torch.from_numpy(self.masks)
+
         return self.inputs[idx], self.masks[idx]
 
 
 if __name__ == '__main__':
     fuze_path = '/home/safoex/Documents/libs/pyrender/examples/models/fuze.obj'
     ds = RenderedDataset(500, 128, fuze_path)
-    ds.create_dataset('test_save')
+    ds.create_dataset('test_save2')
