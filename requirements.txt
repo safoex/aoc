@@ -8,3 +8,4 @@ pyrender
 matplotlib
 torchsummary
 torchvision
+git+https://github.com/vicolab/ml-pyxis

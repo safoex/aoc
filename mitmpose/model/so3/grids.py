@@ -31,6 +31,11 @@ def fibonacci_sphere_rot(samples=2):
     return Rotation.from_euler('xyz', eulers).as_matrix()
 
 
+def in_plane_rot(samples=2):
+    eulers = np.zeros((samples, 3))
+    eulers[:, 2] = np.linspace(0, 2 * np.pi, samples, endpoint=False)
+    return Rotation.from_euler('xyz', eulers).as_matrix()
+
 if __name__ == '__main__':
     print(fibonacci_sphere(4))
     print(fibonacci_sphere_rot(4))

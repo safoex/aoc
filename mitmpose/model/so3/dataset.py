@@ -3,10 +3,11 @@ import torch
 from torch.utils.data import Dataset
 from mitmpose.model.so3 import fibonacci_sphere_rot
 from mitmpose.model.so3 import ObjectRenderer
+from tqdm import tqdm
 
 
 class RenderedDataset(Dataset):
-    def __init__(self, model_path=None, grid_generator=fibonacci_sphere_rot, size=50000, res=128):
+    def __init__(self, size, res, model_path=None, grid_generator=fibonacci_sphere_rot):
         self.size = size
         self.res = res
         self.model_path = model_path
@@ -14,33 +15,25 @@ class RenderedDataset(Dataset):
         self.masks = None
         self.grid_generator = grid_generator
 
-    def render_dataset(self):
+    def create_dataset(self, folder):
         if self.model_path is None:
             raise RuntimeError('you did not set model_path for rendering!')
 
         objren = ObjectRenderer(self.model_path)
         grid = self.grid_generator(self.size)
-        self.inputs = np.zeros((self.size, 3, self.res, self.res))
-        self.masks = np.zeros((self.size, 1, self.res, self.res))
+        self.inputs = np.memmap(folder + '/inputs.npy', dtype=np.float32, mode='w+', shape=(self.size, 3, self.res, self.res))
+        self.masks = np.memmap(folder + '/masks.npy', dtype=np.uint8, mode='w+', shape=(self.size, 1, self.res, self.res))
 
-        for i, rot in enumerate(grid):
+        for i in tqdm(range(len(grid))):
+            rot = grid[i]
             color, depth = objren.render_and_crop(rot, self.res)
 
             self.inputs[i, :, :, :] = np.moveaxis(color, 2, 0)
             self.masks[i, :, :, :] = np.reshape(depth > 0, (1, depth.shape[0], depth.shape[1]))
 
-    def save_dataset(self, folder_path):
-        inputs_path = folder_path + '/inputs.npy'
-        masks_path = folder_path + '/masks.npy'
-        np.save(inputs_path, self.inputs)
-        np.save(masks_path, self.masks)
-
-    def load_dataset(self, folder_path):
-        inputs_path = folder_path + '/inputs.npy'
-        masks_path = folder_path + '/masks.npy'
-        self.inputs = np.load(inputs_path).astype(dtype=np.float32) / 255.0
-        self.masks = np.load(masks_path).astype(dtype=np.uint8)
-        self.size = self.inputs.shape[0]
+    def load_dataset(self, folder):
+        self.inputs = np.memmap(folder + '/inputs.npy', dtype=np.float32, mode="r+", shape=(self.size, 3, self.res, self.res))
+        self.masks = np.memmap(folder + '/masks.npy', dtype=np.uint8, mode='r+', shape=(self.size, 1, self.res, self.res))
 
     def __len__(self):
         return self.size
@@ -54,6 +47,5 @@ class RenderedDataset(Dataset):
 
 if __name__ == '__main__':
     fuze_path = '/home/safoex/Documents/libs/pyrender/examples/models/fuze.obj'
-    ds = RenderedDataset(fuze_path, fibonacci_sphere_rot, 5000)
-    ds.render_dataset()
-    ds.save_dataset('test_save')
+    ds = RenderedDataset(5000, 128, fuze_path)
+    ds.create_dataset('test_save')

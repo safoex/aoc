@@ -30,7 +30,7 @@ class AE(nn.Module):
 def train_ae(ae, dataset, iters=5000, batch_size=32, save_every=0, save_path=None):
     ts = TimeSeries('Training ae', iters)
     opt_ae = optim.Adam(ae.parameters(), lr=2e-4)
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=1)
 
     i = 0
     print_numbers = 0
