@@ -4,6 +4,7 @@ from torch.utils.data import Dataset
 from mitmpose.model.so3 import fibonacci_sphere_rot
 from mitmpose.model.so3 import ObjectRenderer
 from tqdm import tqdm
+import os
 
 
 class RenderedDataset(Dataset):
@@ -21,6 +22,10 @@ class RenderedDataset(Dataset):
 
         objren = ObjectRenderer(self.model_path)
         grid = self.grid_generator(self.size)
+
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+
         self.inputs = np.memmap(folder + '/inputs.npy', dtype=np.float32, mode='w+', shape=(self.size, 3, self.res, self.res))
         self.masks = np.memmap(folder + '/masks.npy', dtype=np.uint8, mode='w+', shape=(self.size, 1, self.res, self.res))
 
