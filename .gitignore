@@ -5,9 +5,10 @@ venv/*
 mitmpose/model/reconstructions/
 *.npy
 mitmpose/model/so3/__pycache__/
-mitmpose/model/so3/test_save/
+mitmpose/model/so3/test_save*/
 mitmpose/__pycache__/
 mitmpose/model/__pycache__/
 build/
 dist/
 mitmpose.egg-info/
+mitmpose/model/saved

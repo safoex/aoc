@@ -14,7 +14,15 @@ class RenderedDataset(Dataset):
         self.model_path = model_path
         self.inputs = None
         self.masks = None
+        self.rots = None
         self.grid_generator = grid_generator
+
+    def create_memmaps(self, folder):
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+
+        self.inputs = np.memmap(folder + '/inputs.npy', dtype=np.float32, mode='w+', shape=(self.size, 3, self.res, self.res))
+        self.masks = np.memmap(folder + '/masks.npy', dtype=np.uint8, mode='w+', shape=(self.size, 1, self.res, self.res))
 
     def create_dataset(self, folder):
         if self.model_path is None:
@@ -23,11 +31,11 @@ class RenderedDataset(Dataset):
         objren = ObjectRenderer(self.model_path)
         grid = self.grid_generator(self.size)
 
-        if not os.path.exists(folder):
-            os.makedirs(folder)
+        self.create_memmaps(folder)
 
-        self.inputs = np.memmap(folder + '/inputs.npy', dtype=np.float32, mode='w+', shape=(self.size, 3, self.res, self.res))
-        self.masks = np.memmap(folder + '/masks.npy', dtype=np.uint8, mode='w+', shape=(self.size, 1, self.res, self.res))
+        self.rots = grid.astype(np.float32)
+        np.save(folder + '/rots.npy', self.rots)
+
 
         for i in tqdm(range(len(grid))):
             rot = grid[i]
@@ -39,6 +47,7 @@ class RenderedDataset(Dataset):
     def load_dataset(self, folder):
         self.inputs = torch.from_numpy(np.memmap(folder + '/inputs.npy', dtype=np.float32, mode="r+", shape=(self.size, 3, self.res, self.res)))
         self.masks = torch.from_numpy(np.memmap(folder + '/masks.npy', dtype=np.uint8, mode='r+', shape=(self.size, 1, self.res, self.res)))
+        self.rots = torch.from_numpy(np.load(folder + '/rots.npy'))
 
     def __len__(self):
         return self.size
@@ -51,10 +60,10 @@ class RenderedDataset(Dataset):
             self.inputs = torch.from_numpy(self.inputs)
             self.masks = torch.from_numpy(self.masks)
 
-        return self.inputs[idx], self.masks[idx]
+        return self.inputs[idx], self.masks[idx], self.rots[idx]
 
 
 if __name__ == '__main__':
     fuze_path = '/home/safoex/Documents/libs/pyrender/examples/models/fuze.obj'
-    ds = RenderedDataset(500, 128, fuze_path)
+    ds = RenderedDataset(5000, 128, fuze_path)
     ds.create_dataset('test_save2')
