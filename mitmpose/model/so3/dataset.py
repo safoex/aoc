@@ -49,6 +49,11 @@ class RenderedDataset(Dataset):
         self.masks = torch.from_numpy(np.memmap(folder + '/masks.npy', dtype=np.uint8, mode='r+', shape=(self.size, 1, self.res, self.res)))
         self.rots = torch.from_numpy(np.load(folder + '/rots.npy'))
 
+    def to_torch(self):
+        self.inputs = torch.from_numpy(self.inputs)
+        self.masks = torch.from_numpy(self.masks)
+        self.rots = torch.from_numpy(self.rots)
+
     def __len__(self):
         return self.size
 

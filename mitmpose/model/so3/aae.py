@@ -7,7 +7,7 @@ from torchsummary import summary
 from mitmpose.model.so3 import EncoderCNN
 from mitmpose.model.so3.decoder import Decoder
 from mitmpose.model.so3.dataset import RenderedDataset
-from mitmpose.model.so3.augment import AugmentedDataset
+from mitmpose.model.so3.augment import AugmentedDataset, AAETransform
 
 from torch.utils.data import DataLoader
 from torchvision import transforms
@@ -58,9 +58,15 @@ def train_ae(ae, dataset, iters=5000, batch_size=32, save_every=0, save_path=Non
 
 
 if __name__ == "__main__":
-    dataset = AugmentedDataset(200, 128)
-    dataset.load_dataset('test_save3')
+    fuze_path = '/home/safoex/Documents/libs/pyrender/examples/models/fuze.obj'
+    t = AAETransform(0.5, '/home/safoex/Documents/data/VOCtrainval_11-May-2012')
+    ds = AugmentedDataset(100, 128, fuze_path, transform=t)
+    ds.create_dataset('test_save4')
+    # dataset = AugmentedDataset(200, 128)
+    # dataset.load_dataset('test_save3')
+    dataset = ds
+    dataset.to_torch()
     ae = AAE(128, 32, (8, 16, 16, 32))
     ae.cuda()
     summary(ae, (3, 128, 128))
-    train_ae(ae, dataset, iters=3000, save_every=30, save_path='test_save3/recons.jpg', batch_size=128)
+    train_ae(ae, dataset, iters=3000, save_every=30, save_path='test_save4/recons.jpg', batch_size=128)

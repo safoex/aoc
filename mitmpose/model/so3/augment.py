@@ -15,18 +15,18 @@ class ImgAugTransform:
     def __init__(self, prob=0.5):
         self.aug = iaa.Sequential([
             iaa.Sometimes(prob, iaa.Affine(scale=(1.0, 1.2))),
-            iaa.Sometimes(prob, iaa.CoarseDropout(p=0.2, size_percent=0.05)),
-            iaa.Sometimes(prob, iaa.GaussianBlur(sigma=(0, 1.2))),
-            iaa.Sometimes(prob, iaa.Add((-25, 25), per_channel=0.3)),
-            iaa.Sometimes(0.3, iaa.Invert(0.2, per_channel=True)),
+            # iaa.Sometimes(prob, iaa.Add((-25, 25), per_channel=0.3)),
+            iaa.Sometimes(prob, iaa.ContrastNormalization((0.5, 2.2), per_channel=0.3)),
             iaa.Sometimes(prob, iaa.Multiply((0.6, 1.4), per_channel=0.5)),
-            iaa.Sometimes(prob, iaa.Multiply((0.6, 1.4))),
-            iaa.Sometimes(prob, iaa.ContrastNormalization((0.5, 2.2), per_channel=0.3))
+            iaa.Sometimes(prob, iaa.Multiply((0.9, 1.1))),
+            iaa.Sometimes(0.3, iaa.Invert(0.2, per_channel=True)),
+            iaa.Sometimes(prob, iaa.GaussianBlur(sigma=(0, 1.2))),
+            # iaa.Sometimes(prob, iaa.CoarseDropout(p=0.2, size_percent=0.05))
         ], random_order=False)
 
     def __call__(self, img):
         img = np.array(img)
-        return self.aug.augment_image(img)
+        return self.aug(images=img)
 
 
 class AddBackgroundImageTransform:
@@ -51,12 +51,13 @@ class AAETransform:
     def __init__(self, aug_prob=0.5, bg_image_dataset_folder=None, batch_size=None, size=(128, 128)):
         self.imgaug = ImgAugTransform(aug_prob)
         self.bgimg = AddBackgroundImageTransform(bg_image_dataset_folder, size)
-        self.patches = transforms.Compose([transforms.RandomErasing(p=0.5, ratio=(0.3, 3.3), scale=(0.02, 0.33))] * 3)
+        self.patches = transforms.Compose([transforms.RandomErasing(p=0.5, ratio=(0.3, 3.3), scale=(0.05, 0.15))] * 3)
 
     def __call__(self, batch):
         img = self.bgimg(batch)
         img = self.imgaug(img * 255.0) / 255.0
         img = self.patches(torch.Tensor(img))
+        # img = torch.Tensor(img)
         return img
 
 
@@ -87,6 +88,10 @@ class AugmentedDataset(RenderedDataset):
         self.inputs_augmented = np.memmap(folder + '/inputs_augmented.npy', dtype=np.float32, mode='r+',
                                           shape=(self.size, 3, self.res, self.res))
 
+    def to_torch(self):
+        super().to_torch()
+        self.inputs_augmented = torch.from_numpy(self.inputs_augmented)
+
     def __getitem__(self, idx):
         if torch.is_tensor(idx):
             idx = idx.tolist()
@@ -100,5 +105,5 @@ class AugmentedDataset(RenderedDataset):
 if __name__ == '__main__':
     fuze_path = '/home/safoex/Documents/libs/pyrender/examples/models/fuze.obj'
     t = AAETransform(0.5, '/home/safoex/Documents/data/VOCtrainval_11-May-2012')
-    ds = AugmentedDataset(200, 128, fuze_path, transform=t)
+    ds = AugmentedDataset(100, 128, fuze_path, transform=t)
     ds.create_dataset('test_save3')
