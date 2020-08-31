@@ -70,5 +70,5 @@ class RenderedDataset(Dataset):
 
 if __name__ == '__main__':
     fuze_path = '/home/safoex/Documents/libs/pyrender/examples/models/fuze.obj'
-    ds = RenderedDataset(5000, 128, fuze_path)
-    ds.create_dataset('test_save2')
+    ds = RenderedDataset(500, 128, fuze_path)
+    ds.create_dataset('test_save')

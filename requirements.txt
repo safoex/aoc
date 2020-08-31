@@ -10,3 +10,4 @@ torchsummary
 torchvision
 git+https://github.com/vicolab/ml-pyxis
 git+https://github.com/aleju/imgaug
+pytorch-lightning

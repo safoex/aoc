@@ -12,3 +12,4 @@ build/
 dist/
 mitmpose.egg-info/
 mitmpose/model/saved
+lightning_logs/
