@@ -23,7 +23,7 @@ class AAE(AE):
 
     def training_step(self, batch, batch_idx):
         x, m, p, x_aug = batch
-        x_hat = ae.forward(x_aug)
+        x_hat = self.forward(x_aug)
         loss = self.loss_aae(x, x_hat, bootstrap_ratio=4)
         result = pl.TrainResult(loss)
         result.log('AE reconstruction loss', loss, prog_bar=True)
