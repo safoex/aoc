@@ -8,7 +8,7 @@ import os
 
 
 class RenderedDataset(Dataset):
-    def __init__(self, size, res, model_path=None, grid_generator=fibonacci_sphere_rot):
+    def __init__(self, size, res, model_path=None, grid_generator=fibonacci_sphere_rot, camera_dist=0.5, render_res=640):
         self.size = size
         self.res = res
         self.model_path = model_path
@@ -16,6 +16,8 @@ class RenderedDataset(Dataset):
         self.masks = None
         self.rots = None
         self.grid_generator = grid_generator
+        self.camera_dist = camera_dist
+        self.render_res = render_res
 
     def create_memmaps(self, folder):
         if not os.path.exists(folder):
@@ -28,7 +30,7 @@ class RenderedDataset(Dataset):
         if self.model_path is None:
             raise RuntimeError('you did not set model_path for rendering!')
 
-        objren = ObjectRenderer(self.model_path)
+        objren = ObjectRenderer(self.model_path, res_side=self.render_res, camera_dist=self.camera_dist)
         grid = self.grid_generator(self.size)
 
         self.create_memmaps(folder)

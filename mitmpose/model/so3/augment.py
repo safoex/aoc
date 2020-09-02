@@ -63,8 +63,8 @@ class AAETransform:
 
 class AugmentedDataset(RenderedDataset):
     def __init__(self, size, res, model_path=None, grid_generator=fibonacci_sphere_rot,
-                 transform=None):
-        super().__init__(size, res, model_path, grid_generator)
+                 transform=None, render_res=640, camera_dist=0.5):
+        super().__init__(size, res, model_path, grid_generator, render_res=render_res, camera_dist=camera_dist)
         self.transform = transform
         self.inputs_augmented = None
 
