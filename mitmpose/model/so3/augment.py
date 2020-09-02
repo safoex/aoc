@@ -62,9 +62,9 @@ class AAETransform:
 
 
 class AugmentedDataset(RenderedDataset):
-    def __init__(self, size, res, model_path=None, grid_generator=fibonacci_sphere_rot,
+    def __init__(self, size_sphere, size_in_plane, model_path=None, res=128, grid_generator=fibonacci_sphere_rot,
                  transform=None, render_res=640, camera_dist=0.5):
-        super().__init__(size, res, model_path, grid_generator, render_res=render_res, camera_dist=camera_dist)
+        super().__init__(size_sphere, size_in_plane, model_path, res, grid_generator, render_res=render_res, camera_dist=camera_dist)
         self.transform = transform
         self.inputs_augmented = None
 
@@ -105,5 +105,5 @@ class AugmentedDataset(RenderedDataset):
 if __name__ == '__main__':
     fuze_path = '/home/safoex/Documents/libs/pyrender/examples/models/fuze.obj'
     t = AAETransform(0.5, '/home/safoex/Documents/data/VOCtrainval_11-May-2012')
-    ds = AugmentedDataset(100, 128, fuze_path, transform=t)
+    ds = AugmentedDataset(100, 10, fuze_path, transform=t)
     ds.create_dataset('test_save3')

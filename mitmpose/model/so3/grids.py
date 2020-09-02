@@ -45,7 +45,7 @@ def fibonacci_sphere_euler_in_plane(samples_sphere=2, samples_in_plane=2):
     return np.array([gs * gp for gs in grid_sphere for gp in grid_in_plane])
 
 
-class GridGenerator:
+class Grid:
     def __init__(self, samples_sphere, samples_in_plane):
         self.samples_sphere = samples_sphere
         self.samples_in_plane = samples_in_plane
@@ -82,7 +82,6 @@ class GridGenerator:
         def nearest(px, py, pz):
             pass
         # self._index_grid_sphere =
-
 
     def index(self, rots):
         pass

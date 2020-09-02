@@ -33,7 +33,7 @@ class AAE(AE):
 if __name__ == "__main__":
     fuze_path = '/home/safoex/Documents/libs/pyrender/examples/models/fuze.obj'
     t = AAETransform(0.5, '/home/safoex/Documents/data/VOCtrainval_11-May-2012')
-    ds = AugmentedDataset(1000, 128, fuze_path, transform=t)
+    ds = AugmentedDataset(100, 20, fuze_path, transform=t)
     # ds.create_dataset('test_save4')
     ds.load_dataset('test_save4')
 

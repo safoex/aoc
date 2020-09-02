@@ -1,21 +1,21 @@
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-from mitmpose.model.so3 import fibonacci_sphere_rot
+from mitmpose.model.so3.grids import fibonacci_sphere_rot, Grid
 from mitmpose.model.so3 import ObjectRenderer
 from tqdm import tqdm
 import os
 
 
 class RenderedDataset(Dataset):
-    def __init__(self, size, res, model_path=None, grid_generator=fibonacci_sphere_rot, camera_dist=0.5, render_res=640):
-        self.size = size
+    def __init__(self, size_sphere, size_in_plane, model_path=None, res=128, grid_class=Grid, camera_dist=0.5, render_res=640):
+        self.size = size_sphere * size_in_plane
         self.res = res
         self.model_path = model_path
         self.inputs = None
         self.masks = None
         self.rots = None
-        self.grid_generator = grid_generator
+        self.grider = Grid(samples_sphere=size_sphere, samples_in_plane=size_in_plane)
         self.camera_dist = camera_dist
         self.render_res = render_res
 
@@ -31,13 +31,12 @@ class RenderedDataset(Dataset):
             raise RuntimeError('you did not set model_path for rendering!')
 
         objren = ObjectRenderer(self.model_path, res_side=self.render_res, camera_dist=self.camera_dist)
-        grid = self.grid_generator(self.size)
+        grid = self.grider.grid
 
         self.create_memmaps(folder)
 
         self.rots = grid.astype(np.float32)
         np.save(folder + '/rots.npy', self.rots)
-
 
         for i in tqdm(range(len(grid))):
             rot = grid[i]
@@ -72,5 +71,5 @@ class RenderedDataset(Dataset):
 
 if __name__ == '__main__':
     fuze_path = '/home/safoex/Documents/libs/pyrender/examples/models/fuze.obj'
-    ds = RenderedDataset(500, 128, fuze_path)
+    ds = RenderedDataset(100, 10, fuze_path)
     ds.create_dataset('test_save')
