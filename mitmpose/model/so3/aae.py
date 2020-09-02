@@ -26,22 +26,20 @@ class AAE(AE):
         x_hat = self.forward(x_aug)
         loss = self.loss_aae(x, x_hat, bootstrap_ratio=4)
         result = pl.TrainResult(loss)
-        result.log('AE reconstruction loss', loss, prog_bar=True)
+        # result.log('loss', loss, prog_bar=True)
         return result
-
 
 
 if __name__ == "__main__":
     fuze_path = '/home/safoex/Documents/libs/pyrender/examples/models/fuze.obj'
     t = AAETransform(0.5, '/home/safoex/Documents/data/VOCtrainval_11-May-2012')
     ds = AugmentedDataset(1000, 128, fuze_path, transform=t)
-    ds.create_dataset('test_save4')
-    # dataset = AugmentedDataset(200, 128)
-    # dataset.load_dataset('test_save3')
+    # ds.create_dataset('test_save4')
+    ds.load_dataset('test_save4')
 
     ae = AAE(128, 32, (8, 16, 16, 32))
     # train_ae(ae, dataset, iters=3000, save_every=30, save_path='test_save4/recons.jpg', batch_size=128)
     dm = AEDataModule(ds, 'test_save4')
 
-    trainer = pl.Trainer()
-    trainer.fit(ae, dm)
+    trainer = pl.Trainer(gpus=1, max_epochs=100)
+    trainer.fit(ae, datamodule=dm)
