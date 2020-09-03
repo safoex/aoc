@@ -1,21 +1,34 @@
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-from mitmpose.model.so3.grids import fibonacci_sphere_rot, Grid
+from mitmpose.model.so3.grids import Grid
 from mitmpose.model.so3 import ObjectRenderer
 from tqdm import tqdm
 import os
 
 
+class IndexedDataset(Dataset):
+    def __init__(self, dataset):
+        super().__init__()
+        self.dataset = dataset
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, idx):
+        items = self.dataset.__getitem__(idx)
+        return (*items, idx)
+
+
 class RenderedDataset(Dataset):
-    def __init__(self, size_sphere, size_in_plane, model_path=None, res=128, grid_class=Grid, camera_dist=0.5, render_res=640):
-        self.size = size_sphere * size_in_plane
+    def __init__(self, grider: Grid, model_path=None, res=128, camera_dist=0.5, render_res=640):
+        self.size = grider.samples_in_plane * grider.samples_sphere
         self.res = res
         self.model_path = model_path
         self.inputs = None
         self.masks = None
         self.rots = None
-        self.grider = Grid(samples_sphere=size_sphere, samples_in_plane=size_in_plane)
+        self.grider = grider
         self.camera_dist = camera_dist
         self.render_res = render_res
 
@@ -69,7 +82,10 @@ class RenderedDataset(Dataset):
         return self.inputs[idx], self.masks[idx], self.rots[idx]
 
 
+
+
 if __name__ == '__main__':
     fuze_path = '/home/safoex/Documents/libs/pyrender/examples/models/fuze.obj'
-    ds = RenderedDataset(100, 10, fuze_path)
+    grider = Grid(100, 10)
+    ds = RenderedDataset(grider, fuze_path)
     ds.create_dataset('test_save')

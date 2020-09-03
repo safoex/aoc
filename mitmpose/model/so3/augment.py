@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-from mitmpose.model.so3 import fibonacci_sphere_rot
+from mitmpose.model.so3.grids import Grid
 
 from mitmpose.model.so3.dataset import RenderedDataset
 
@@ -15,11 +15,11 @@ class ImgAugTransform:
     def __init__(self, prob=0.5):
         self.aug = iaa.Sequential([
             iaa.Sometimes(prob, iaa.Affine(scale=(1.0, 1.2))),
-            # iaa.Sometimes(prob, iaa.Add((-25, 25), per_channel=0.3)),
+            iaa.Sometimes(prob, iaa.Add((-8, 8), per_channel=0.3)),
             iaa.Sometimes(prob, iaa.ContrastNormalization((0.5, 2.2), per_channel=0.3)),
             iaa.Sometimes(prob, iaa.Multiply((0.6, 1.4), per_channel=0.5)),
             iaa.Sometimes(prob, iaa.Multiply((0.9, 1.1))),
-            iaa.Sometimes(0.3, iaa.Invert(0.2, per_channel=True)),
+            # iaa.Sometimes(0.3, iaa.Invert(0.2, per_channel=True)),
             iaa.Sometimes(prob, iaa.GaussianBlur(sigma=(0, 1.2))),
             # iaa.Sometimes(prob, iaa.CoarseDropout(p=0.2, size_percent=0.05))
         ], random_order=False)
@@ -62,9 +62,9 @@ class AAETransform:
 
 
 class AugmentedDataset(RenderedDataset):
-    def __init__(self, size_sphere, size_in_plane, model_path=None, res=128, grid_generator=fibonacci_sphere_rot,
+    def __init__(self, grider:Grid,  model_path=None, res=128,
                  transform=None, render_res=640, camera_dist=0.5):
-        super().__init__(size_sphere, size_in_plane, model_path, res, grid_generator, render_res=render_res, camera_dist=camera_dist)
+        super().__init__(grider, model_path, res, render_res=render_res, camera_dist=camera_dist)
         self.transform = transform
         self.inputs_augmented = None
 
@@ -105,5 +105,6 @@ class AugmentedDataset(RenderedDataset):
 if __name__ == '__main__':
     fuze_path = '/home/safoex/Documents/libs/pyrender/examples/models/fuze.obj'
     t = AAETransform(0.5, '/home/safoex/Documents/data/VOCtrainval_11-May-2012')
-    ds = AugmentedDataset(100, 10, fuze_path, transform=t)
+    grid = Grid(100, 10)
+    ds = AugmentedDataset(grid, fuze_path, transform=t)
     ds.create_dataset('test_save3')

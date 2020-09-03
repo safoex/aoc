@@ -7,6 +7,7 @@ from torchsummary import summary
 from mitmpose.model.so3 import EncoderCNN
 from mitmpose.model.so3.decoder import Decoder
 from mitmpose.model.so3.dataset import RenderedDataset
+from mitmpose.model.so3.grids import Grid
 from mitmpose.model.so3.augment import AugmentedDataset, AAETransform
 
 from torch.utils.data import DataLoader
@@ -33,13 +34,15 @@ class AAE(AE):
 if __name__ == "__main__":
     fuze_path = '/home/safoex/Documents/libs/pyrender/examples/models/fuze.obj'
     t = AAETransform(0.5, '/home/safoex/Documents/data/VOCtrainval_11-May-2012')
-    ds = AugmentedDataset(100, 20, fuze_path, transform=t)
+    grider = Grid(500, 20)
+    ds = AugmentedDataset(grider, fuze_path, transform=t)
     # ds.create_dataset('test_save4')
     ds.load_dataset('test_save4')
 
-    ae = AAE(128, 32, (8, 16, 16, 32))
+    ae = AAE(128, 32, (32, 64, 64, 128))
     # train_ae(ae, dataset, iters=3000, save_every=30, save_path='test_save4/recons.jpg', batch_size=128)
     dm = AEDataModule(ds, 'test_save4')
 
-    trainer = pl.Trainer(gpus=1, max_epochs=100)
+    trainer = pl.Trainer(gpus=1, max_epochs=30)
     trainer.fit(ae, datamodule=dm)
+    torch.save(ae.state_dict(), 'test_save4/ae32.pth')
