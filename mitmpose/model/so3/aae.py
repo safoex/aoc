@@ -18,6 +18,7 @@ from mitmpose.model.so3.ae import AE, print_batch, AEDataModule
 import pytorch_lightning as pl
 
 
+
 class AAE(AE):
     def __init__(self, image_size=128, latent_size=128, filters=(128, 256, 256, 512), lae_inside=None):
         super().__init__(image_size, latent_size, filters, lae_inside)
@@ -39,10 +40,10 @@ if __name__ == "__main__":
     # ds.create_dataset('test_save4')
     ds.load_dataset('test_save4')
 
-    ae = AAE(128, 32, (32, 64, 64, 128))
+    ae = AAE(128, 32, (16, 32, 32, 64))
     # train_ae(ae, dataset, iters=3000, save_every=30, save_path='test_save4/recons.jpg', batch_size=128)
     dm = AEDataModule(ds, 'test_save4')
-
-    trainer = pl.Trainer(gpus=1, max_epochs=30)
+    pl.callbacks.early_stopping.EarlyStopping()
+    trainer = pl.Trainer(gpus=1, max_epochs=60, )
     trainer.fit(ae, datamodule=dm)
     torch.save(ae.state_dict(), 'test_save4/ae32.pth')

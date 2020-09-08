@@ -69,6 +69,9 @@ class Grid:
         self._xy_step = None
         self.z_step = 2 * np.pi / samples_in_plane
 
+    def __len__(self):
+        return len(self.grid)
+
     @property
     def grid(self):
         if self._grid is None:
@@ -95,9 +98,9 @@ class Grid:
     @property
     def index_grid(self):
         if self._index_grid_sphere is None:
-            lx = int(2 * np.pi / self.xy_step)
-            ly = int(2 * np.pi / self.xy_step)
-            lz = self.samples_in_plane
+            lx = int(2 * np.pi / self.xy_step) + 1
+            ly = int(2 * np.pi / self.xy_step) + 1
+            lz = self.samples_in_plane + 1
             x = np.linspace(0, 2 * np.pi, lx)
             y = np.linspace(-np.pi, np.pi, ly)
             z = np.linspace(0, 2 * np.pi, lz)
@@ -109,7 +112,6 @@ class Grid:
             any_unfilled = np.ones(len(self.grid), dtype=np.bool)
             while True:
                 d += 1
-                print(d)
                 square_around = [(a, r) for r in range(-d, d + 1) for a in (-d, d)]
                 square_around += [(b, a) for a, b in square_around]
                 square_around = list(set(square_around))
@@ -131,15 +133,114 @@ class Grid:
 
     def _index_on_index_grid(self, rots):
         rots_euler = Rotation.from_matrix(rots).as_euler('xyz')
-        rots_euler[:, :3] += np.pi
-        rots_euler[:, :2] /= self.xy_step
-        rots_euler[:, 2] /= self.z_step
+        rots_euler += np.pi
+        if len(rots.shape) > 2:
+            rots_euler[:, :2] /= self.xy_step
+            rots_euler[:, 2] /= self.z_step
+        else:
+            rots_euler[:2] /= self.xy_step
+            rots_euler[2] /= self.z_step
         np.round_(rots_euler)
         return rots_euler.astype(np.int16)
 
     def nn_index(self, rots):
         indices = self._index_on_index_grid(rots)
-        return self.index_grid[indices[:, 0], indices[:, 1], indices[:, 2]]
+        if len(indices.shape) > 1:
+            return self.index_grid[indices[:, 0], indices[:, 1], indices[:, 2]]
+        else:
+            return self.index_grid[indices[0], indices[1], indices[2]]
+
+
+import itertools
+
+
+class GradUniformGrid(Grid):
+    def __init__(self, samples_x, samples_y, samples_in_plane,
+                 range_x=(-np.pi, np.pi), range_y=(-np.pi / 2, np.pi / 2), range_z=(-np.pi, np.pi), eulers_order='xyz', extra_rot=None):
+        super().__init__(samples_x * samples_y, samples_in_plane)
+        self.samples_x = samples_x
+        self.samples_y = samples_y
+        self._x_step = 2 * np.pi / samples_x
+        self._y_step = np.pi / samples_y
+        self.lx = np.linspace(range_x[0], range_x[1], self.samples_x)
+        self.ly = np.linspace(range_y[0], range_y[1], self.samples_y)
+        self.lz = np.linspace(range_z[0], range_z[1], self.samples_in_plane)
+        self._interpolator = None
+
+        self.extra_rot = extra_rot or Rotation.identity()
+
+        self.eulers_order = eulers_order
+        if self.eulers_order == 'yxz':
+            self.lx, self.ly = self.ly, self.lx
+            self.samples_x, self.samples_y = self.samples_y, self.samples_x
+            self._x_step, self._y_step = self._y_step, self._x_step
+
+    @property
+    def grid(self):
+        if self._grid is None:
+            self._grid = (self.extra_rot * Rotation.from_euler(self.eulers_order,
+                                             list(itertools.product(self.lx, self.ly, self.lz))
+                                             )).as_matrix()
+        return self._grid
+
+    def make_interpolator(self, codebook):
+        idcs = itertools.product(range(self.samples_x), range(self.samples_y), range(self.samples_in_plane))
+        codebook3d = np.zeros((self.samples_x, self.samples_y, self.samples_in_plane, codebook.shape[1]),
+                              dtype=np.float32)
+        codebook_cpu = codebook.cpu()
+        for i, (ix, iy, iz) in enumerate(idcs):
+            codebook3d[ix, iy, iz, :] = codebook_cpu[i]
+        self._interpolator = RegularGridInterpolator((self.lx, self.ly, self.lz), codebook3d, method='linear')
+
+        def interp(rots):
+            rrots = self.extra_rot.inv() * Rotation.from_matrix(rots)
+            eulers = rrots.as_euler(self.eulers_order)
+            return self._interpolator(eulers)
+
+        return interp
+
+
+class AxisSwapGrid(Grid):
+    def __init__(self, samples_x, samples_y, samples_in_plane, delta_y=np.pi / 12):
+        super().__init__(samples_x * samples_y, samples_in_plane)
+
+        assert samples_y % 2 == 0
+        self.grids = [GradUniformGrid(samples_x, samples_y // 2, samples_in_plane,
+                                      range_y=(-np.pi / 4 - delta_y, np.pi / 4 + delta_y), extra_rot=erot)
+                      for erot in (None, Rotation.from_euler('xyz', [np.pi/2, 0, 0]))]
+
+        self._grid = None
+
+    @property
+    def grid(self):
+        if self._grid is None:
+            self._grid = np.concatenate((self.grids[0].grid, self.grids[1].grid))
+
+        return self._grid
+
+    def make_interpolator(self, codebook):
+        half = len(self) // 2
+        interpolators = [grid.make_interpolator(codebook[i * half: (i + 1) * half, :])
+                         for i, grid in enumerate(self.grids)]
+
+        def interp(rots):
+            eulers = Rotation.from_matrix(rots).as_euler('xyz')
+            if len(rots.shape) > 2:
+                res = np.ones((rots.shape[0], codebook.shape[1]))
+                mask_xyz = np.abs(eulers[:, 1]) <= np.pi / 4
+                mask_yxz = np.logical_not(mask_xyz)
+                if np.sum(mask_xyz) > 0:
+                    res[mask_xyz] = interpolators[0](rots[mask_xyz])
+                if np.sum(mask_yxz) > 0:
+                    res[mask_yxz] = interpolators[1](rots[mask_yxz])
+                return res
+            else:
+                if np.abs(eulers[1]) <= np.pi / 4:
+                    return interpolators[0](rots)
+                else:
+                    return interpolators[1](rots)
+
+        return interp
 
 
 if __name__ == '__main__':
@@ -147,5 +248,7 @@ if __name__ == '__main__':
 
     # print(Rotation.from_euler('xyz', fse).as_euler('xyz'))
     # print(fibonacci_sphere_rot(4))
-    g = Grid(4, 4)
-    print(g.xy_step)
+    # g = Grid(4, 4)
+    # print(g.xy_step)
+    ug = GradUniformGrid(3, 3, 3)
+    print(ug.grid)

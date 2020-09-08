@@ -17,7 +17,7 @@ class IndexedDataset(Dataset):
 
     def __getitem__(self, idx):
         items = self.dataset.__getitem__(idx)
-        return (*items, idx)
+        return items, idx
 
 
 class RenderedDataset(Dataset):
@@ -31,6 +31,13 @@ class RenderedDataset(Dataset):
         self.grider = grider
         self.camera_dist = camera_dist
         self.render_res = render_res
+        self._objren = None
+
+    @property
+    def objren(self):
+        if self._objren is None:
+            self._objren = ObjectRenderer(self.model_path, res_side=self.render_res, camera_dist=self.camera_dist)
+        return self._objren
 
     def create_memmaps(self, folder):
         if not os.path.exists(folder):
@@ -43,7 +50,6 @@ class RenderedDataset(Dataset):
         if self.model_path is None:
             raise RuntimeError('you did not set model_path for rendering!')
 
-        objren = ObjectRenderer(self.model_path, res_side=self.render_res, camera_dist=self.camera_dist)
         grid = self.grider.grid
 
         self.create_memmaps(folder)
@@ -53,7 +59,7 @@ class RenderedDataset(Dataset):
 
         for i in tqdm(range(len(grid))):
             rot = grid[i]
-            color, depth = objren.render_and_crop(rot, self.res)
+            color, depth = self.objren.render_and_crop(rot, self.res)
 
             self.inputs[i, :, :, :] = np.moveaxis(color, 2, 0) / 255.0
             self.masks[i, :, :, :] = np.reshape(depth > 0, (1, depth.shape[0], depth.shape[1]))
@@ -82,6 +88,39 @@ class RenderedDataset(Dataset):
         return self.inputs[idx], self.masks[idx], self.rots[idx]
 
 
+class OnlineRenderDataset(Dataset):
+    def __init__(self, grider: Grid, model_path=None, res=128, camera_dist=0.5, render_res=640):
+        self.size = grider.samples_in_plane * grider.samples_sphere
+        self.res = res
+        self.model_path = model_path
+        self.grider = grider
+        self.camera_dist = camera_dist
+        self.render_res = render_res
+        self._objren = None
+
+    @property
+    def objren(self):
+        if self._objren is None:
+            self._objren = ObjectRenderer(self.model_path, res_side=self.render_res, camera_dist=self.camera_dist)
+        return self._objren
+
+    def __len__(self):
+        return self.size
+
+    def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+
+        if isinstance(idx, list):
+            return [self.__getitem__(i) for i in idx]
+        else:
+            rot = self.grider.grid[idx]
+            color, depth = self.objren.render_and_crop(rot, self.res)
+
+            img = np.moveaxis(color, 2, 0) / 255.0
+            mask = np.reshape(depth > 0, (1, depth.shape[0], depth.shape[1]))
+
+            return img, mask
 
 
 if __name__ == '__main__':
