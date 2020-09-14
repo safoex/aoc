@@ -12,9 +12,12 @@ from tqdm import tqdm
 
 
 def print_batch(x, x_hat, save_path, side=4):
-    img_tensor_inputs = [torch.cat([x[i, :, :, :].cpu() for i in range(j * side, (j + 1) * side)], 1) for j
+    if torch.is_tensor(x):
+        x = x.cpu()
+        x_hat = x_hat.cpu()
+    img_tensor_inputs = [torch.cat([x[i, :, :, :] for i in range(j * side, (j + 1) * side)], 1) for j
                          in range(2)]
-    img_tensor_outputs = [torch.cat([x_hat[i, :, :, :].cpu() for i in range(j * side, (j + 1) * side)], 1)
+    img_tensor_outputs = [torch.cat([x_hat[i, :, :, :] for i in range(j * side, (j + 1) * side)], 1)
                           for j in range(2)]
 
     img_tensor = torch.cat(img_tensor_inputs + img_tensor_outputs, 2)
