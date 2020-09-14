@@ -11,6 +11,17 @@ from torchvision import transforms
 from tqdm import tqdm
 
 
+def print_batch(x, x_hat, save_path, side=4):
+    img_tensor_inputs = [torch.cat([x[i, :, :, :].cpu() for i in range(j * side, (j + 1) * side)], 1) for j
+                         in range(2)]
+    img_tensor_outputs = [torch.cat([x_hat[i, :, :, :].cpu() for i in range(j * side, (j + 1) * side)], 1)
+                          for j in range(2)]
+
+    img_tensor = torch.cat(img_tensor_inputs + img_tensor_outputs, 2)
+    im = transforms.ToPILImage()(img_tensor).convert("RGB")
+    im.save(save_path)
+
+
 class ImgAugTransform:
     def __init__(self, prob=0.5):
         self.aug = iaa.Sequential([
@@ -63,10 +74,11 @@ class AAETransform:
 
 class AugmentedDataset(RenderedDataset):
     def __init__(self, grider:Grid,  model_path=None, res=128,
-                 transform=None, render_res=640, camera_dist=0.5):
+                 transform=None, render_res=640, camera_dist=0.5, show_file=None):
         super().__init__(grider, model_path, res, render_res=render_res, camera_dist=camera_dist)
         self.transform = transform
         self.inputs_augmented = None
+        self.show_file = show_file
 
     def augment(self):
         if self.inputs is None:
@@ -77,6 +89,9 @@ class AugmentedDataset(RenderedDataset):
         for i in tqdm(range(len(self))):
             img = self.transform((self.inputs[i], self.masks[i], self.rots[i]))
             self.inputs_augmented[i] = np.array(img)
+            if self.show_file and i > 0 and i % 8 == 0:
+                print_batch(x=self.inputs[i-8:i], x_hat=self.inputs_augmented[i-8:i], save_path=self.show_file)
+
 
     def create_dataset(self, folder):
         super().create_dataset(folder)

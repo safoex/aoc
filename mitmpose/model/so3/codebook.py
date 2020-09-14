@@ -191,7 +191,24 @@ def cross_loss_test(codebook, n=300):
     return torch.min(cl_diff), torch.max(cl_diff), torch.median(cl_diff)
 
 
-if __name__ == "__main__3":
+from scipy.spatial.transform import Rotation
+from matplotlib import pyplot as plt
+
+
+def cross_loss_vis(codebook, N=300):
+    eulers = np.zeros((N, 3), dtype=np.float32)
+    eulers[:, 1] = np.linspace(-np.pi / 4, +np.pi / 4, N)
+    eulers[:, 0] = np.random.random(N) * np.pi / 20
+    eulers[:, 2] = np.random.random(N) * np.pi / 20
+
+    rots = Rotation.from_euler('xyz', eulers).as_matrix()
+
+    test = codebook.cos_sim(codebook.latent_approx(rots), codebook.latent_exact(rots))
+    plt.scatter(eulers[:, 1], np.array(test.cpu()))
+    plt.show()
+
+
+if __name__ == "__main__":
     ae = AAE(128, 32, (16, 32, 32, 64)).cuda()
     ae.load_state_dict(torch.load('test_save4/ae32.pth'))
 
@@ -203,26 +220,43 @@ if __name__ == "__main__3":
     # codebook.save(ds_path + '/codebook_grad2.pt')
     codebook.load(ds_path + '/codebook_grad2.pt')
 
-    r1 = special_ortho_group.rvs(3, 300)
-    r2 = special_ortho_group.rvs(3, 300)
-    print(r1.shape)
-    import time
-    from scipy.spatial.transform import Rotation
+    # r1 = special_ortho_group.rvs(3, 300)
+    # r2 = special_ortho_group.rvs(3, 300)
+    # print(r1.shape)
+    # import time
+    # from scipy.spatial.transform import Rotation
+    # cl_apprx = codebook.cross_loss(r1, r2)
+    # st1 = time.time()
+    # cl_apprx = codebook.cross_loss(r1, r2)
+    # t1 = time.time() - st1
+    # st2 = time.time()
+    # cl_exact = codebook.cross_loss_exact(r1, r2)
+    # t2 = time.time() - st2
+    # cl_diff = torch.abs(cl_apprx - cl_exact)
+    # imax = torch.argmax(cl_diff)
+    # bad1, bad2 = r1[imax], r2[imax]
+    # print(Rotation.from_matrix([bad1, bad2]).as_euler('xyz'))
+    # for bad in (bad1, bad2):
+    #     print(codebook.cos_sim(codebook.latent_approx(bad), codebook.latent_exact(bad)))
+    # print(torch.min(cl_diff), torch.max(cl_diff), torch.median(cl_diff))
+    # print(t1, t2)
+
+
+    n = 10
+    r1 = special_ortho_group.rvs(3, n)
+    r2 = special_ortho_group.rvs(3, n)
+
     cl_apprx = codebook.cross_loss(r1, r2)
+
+    n = 1000000
+    r1 = special_ortho_group.rvs(3, n)
+    r2 = special_ortho_group.rvs(3, n)
+
     st1 = time.time()
     cl_apprx = codebook.cross_loss(r1, r2)
-    t1 = time.time() - st1
-    st2 = time.time()
-    cl_exact = codebook.cross_loss_exact(r1, r2)
-    t2 = time.time() - st2
-    cl_diff = torch.abs(cl_apprx - cl_exact)
-    imax = torch.argmax(cl_diff)
-    bad1, bad2 = r1[imax], r2[imax]
-    print(Rotation.from_matrix([bad1, bad2]).as_euler('xyz'))
-    for bad in (bad1, bad2):
-        print(codebook.cos_sim(codebook.latent_approx(bad), codebook.latent_exact(bad)))
-    print(torch.min(cl_diff), torch.max(cl_diff), torch.median(cl_diff))
-    print(t1, t2)
+    t_cl = time.time() - st1
+    print("time for %d cross_losses is %s" % (n, str(t_cl)))
+    # cross_loss_vis(codebook, 3000)
 
 if __name__ == "__main__2":
     ae = AAE(128, 32, (16, 32, 32, 64)).cuda()
@@ -252,7 +286,7 @@ if __name__ == "__main__2":
     plt.show()
 
 
-if __name__ == "__main__":
+if __name__ == "__main__2":
     ae = AAE(128, 32, (16, 32, 32, 64)).cuda()
     ae.load_state_dict(torch.load('test_save4/ae32.pth'))
 
@@ -268,18 +302,5 @@ if __name__ == "__main__":
 
     print(cross_loss_test(codebook, 1000))
 
-    N = 300
-    eulers = np.zeros((N, 3), dtype=np.float32)
-    eulers[:, 1] = np.linspace(-np.pi/4, +np.pi/4, N)
-    eulers[:, 0] = np.random.random(N) * np.pi/20
-    eulers[:, 2] = np.random.random(N) * np.pi/20
-
-
-    from scipy.spatial.transform import Rotation
-    rots = Rotation.from_euler('xyz', eulers).as_matrix()
-
-    test = codebook.cos_sim(codebook.latent_approx(rots), codebook.latent_exact(rots))
-    from matplotlib import pyplot as plt
-    plt.scatter(eulers[:, 1], np.array(test.cpu()))
-    plt.show()
+    cross_loss_vis(codebook)
 

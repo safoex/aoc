@@ -7,7 +7,7 @@ from torchsummary import summary
 from mitmpose.model.so3 import EncoderCNN
 from mitmpose.model.so3.decoder import Decoder
 from mitmpose.model.so3.dataset import RenderedDataset
-from mitmpose.model.so3.augment import AugmentedDataset
+from mitmpose.model.so3.augment import AugmentedDataset, print_batch
 
 from torch.utils.data import DataLoader
 from torchvision import transforms
@@ -61,16 +61,6 @@ class AE(pl.LightningModule):
     #     x_hat = ae.forward(x)
     #
     #     return pl.EvalResult(self.loss_aae(x, x_hat, bootstrap_ratio=4))
-
-def print_batch(x, x_hat, save_path, side=4):
-    img_tensor_inputs = [torch.cat([x[i, :, :, :].cpu() for i in range(j * side, (j + 1) * side)], 1) for j
-                         in range(2)]
-    img_tensor_outputs = [torch.cat([x_hat[i, :, :, :].cpu() for i in range(j * side, (j + 1) * side)], 1)
-                          for j in range(2)]
-
-    img_tensor = torch.cat(img_tensor_inputs + img_tensor_outputs, 2)
-    im = transforms.ToPILImage()(img_tensor).convert("RGB")
-    im.save(save_path)
 
 
 def train_ae(ae, dataset, iters=5000, batch_size=32, save_every=0, save_path=None, print_every_seconds=10):
