@@ -59,8 +59,8 @@ class AddBackgroundImageTransform:
 
 
 class AAETransform:
-    def __init__(self, aug_prob=0.5, bg_image_dataset_folder=None, batch_size=None, size=(128, 128)):
-        self.imgaug = ImgAugTransform(aug_prob)
+    def __init__(self, aug_prob=0.5, bg_image_dataset_folder=None, batch_size=None, size=(128, 128), ImgAugTransformClass=ImgAugTransform):
+        self.imgaug = ImgAugTransformClass(aug_prob)
         self.bgimg = AddBackgroundImageTransform(bg_image_dataset_folder, size)
         self.patches = transforms.Compose([transforms.RandomErasing(p=0.5, ratio=(0.3, 3.3), scale=(0.05, 0.15))] * 3)
 
