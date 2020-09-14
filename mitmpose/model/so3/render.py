@@ -121,10 +121,9 @@ class ObjectRenderer:
 
         final_box = (top, left, bottom, right)
 
-        return [
-            np.array(Image.fromarray(img).crop(final_box).resize((target_res, target_res)), dtype=np.float32)
-            for img in (color, depth)
-        ]
+        return np.array(Image.fromarray(color).crop(final_box).resize((target_res, target_res)), dtype=np.float32), \
+               np.array(Image.fromarray((depth > 0).astype(np.uint8)).crop(final_box).resize((128, 128)), dtype=np.float32)
+
 
     def test_show(self, color, depth):
         import matplotlib.pyplot as plt
