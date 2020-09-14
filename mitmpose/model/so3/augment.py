@@ -12,12 +12,9 @@ from tqdm import tqdm
 
 
 def print_batch(x, x_hat, save_path, side=4):
-    if torch.is_tensor(x):
-        x = x.cpu()
-        x_hat = x_hat.cpu()
-    img_tensor_inputs = [torch.cat([x[i, :, :, :] for i in range(j * side, (j + 1) * side)], 1) for j
+    img_tensor_inputs = [torch.cat([x[i, :, :, :].cpu() for i in range(j * side, (j + 1) * side)], 1) for j
                          in range(2)]
-    img_tensor_outputs = [torch.cat([x_hat[i, :, :, :] for i in range(j * side, (j + 1) * side)], 1)
+    img_tensor_outputs = [torch.cat([x_hat[i, :, :, :].cpu() for i in range(j * side, (j + 1) * side)], 1)
                           for j in range(2)]
 
     img_tensor = torch.cat(img_tensor_inputs + img_tensor_outputs, 2)
@@ -93,7 +90,9 @@ class AugmentedDataset(RenderedDataset):
             img = self.transform((self.inputs[i], self.masks[i], self.rots[i]))
             self.inputs_augmented[i] = np.array(img)
             if self.show_file and i > 0 and i % 8 == 0:
-                print_batch(x=self.inputs[i-8:i], x_hat=self.inputs_augmented[i-8:i], save_path=self.show_file)
+                print_batch(x=torch.tensor(self.inputs[i-8:i]),
+                            x_hat=torch.tensor(self.inputs_augmented[i-8:i]),
+                            save_path=self.show_file)
 
 
     def create_dataset(self, folder):
