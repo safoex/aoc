@@ -28,7 +28,7 @@ class ObjectRenderer:
 
         # light = pyrender.SpotLight(color=np.ones(3), intensity=self.camera_dist * 500, innerConeAngle=np.pi / 16.0)
         # self.light = self.scene.add(light, pose=camera_pose)
-        dl = pyrender.DirectionalLight(color=[1.0, 1.0, 1.0], intensity=5.0)
+        dl = pyrender.DirectionalLight(color=[1.0, 1.0, 1.0], intensity=20.0)
         self.light = self.scene.add(dl)
         self.res_side = res_side
         self.renderer = pyrender.OffscreenRenderer(self.res_side, self.res_side)
