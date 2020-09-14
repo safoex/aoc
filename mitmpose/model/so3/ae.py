@@ -100,11 +100,12 @@ def train_ae(ae, dataset, iters=5000, batch_size=32, save_every=0, save_path=Non
 
 
 class AEDataModule(pl.LightningDataModule):
-    def __init__(self, dataset, dataset_folder, batch_size=64):
+    def __init__(self, dataset, dataset_folder, batch_size=64, num_workers=4):
         super().__init__()
         self.batch_size = batch_size
         self.dataset = dataset
         self.dataset_folder = dataset_folder
+        self.num_workers = num_workers
 
     def setup(self, stage=None):
         self.dataset.load_dataset(self.dataset_folder)
