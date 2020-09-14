@@ -111,7 +111,7 @@ class AEDataModule(pl.LightningDataModule):
         self.dataset.load_dataset(self.dataset_folder)
 
     def train_dataloader(self) -> DataLoader:
-        return DataLoader(self.dataset, batch_size=self.batch_size, shuffle=True, num_workers=4)
+        return DataLoader(self.dataset, batch_size=self.batch_size, shuffle=True, num_workers=self.num_workers)
     #
     # def val_dataloader(self) -> DataLoader:
     #     return DataLoader(self.val_data, batch_size=self.batch_size, shuffle=True)
