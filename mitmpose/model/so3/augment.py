@@ -8,7 +8,8 @@ from mitmpose.model.so3.dataset import RenderedDataset
 from imgaug import augmenters as iaa
 from torchvision.datasets import VOCDetection
 from torchvision import transforms
-from tqdm import tqdm
+from tqdm.auto import tqdm
+from joblib import Parallel, delayed, parallel_backend
 
 
 def print_batch(x, x_hat, save_path, side=4):
@@ -20,6 +21,23 @@ def print_batch(x, x_hat, save_path, side=4):
     img_tensor = torch.cat(img_tensor_inputs + img_tensor_outputs, 2)
     im = transforms.ToPILImage()(img_tensor).convert("RGB")
     im.save(save_path)
+
+
+class ProgressParallel(Parallel):
+    def __init__(self, use_tqdm=True, total=None, *args, **kwargs):
+        self._use_tqdm = use_tqdm
+        self._total = total
+        super().__init__(*args, **kwargs)
+
+    def __call__(self, *args, **kwargs):
+        with tqdm(disable=not self._use_tqdm, total=self._total) as self._pbar:
+            return Parallel.__call__(self, *args, **kwargs)
+
+    def print_progress(self):
+        if self._total is None:
+            self._pbar.total = self.n_dispatched_tasks
+        self._pbar.n = self.n_completed_tasks
+        self._pbar.refresh()
 
 
 class ImgAugTransform:
@@ -74,25 +92,28 @@ class AAETransform:
 
 class AugmentedDataset(RenderedDataset):
     def __init__(self, grider:Grid,  model_path=None, res=128,
-                 transform=None, render_res=640, camera_dist=0.5, show_file=None):
+                 transform=None, render_res=640, camera_dist=0.5, show_file=None, n_workers=4):
         super().__init__(grider, model_path, res, render_res=render_res, camera_dist=camera_dist)
         self.transform = transform
         self.inputs_augmented = None
         self.show_file = show_file
+        self.n_workers = n_workers
 
     def augment(self):
         if self.inputs is None:
             raise RuntimeError("Attempt to augment empty dataset! Create or load dataset first")
         if self.transform is None:
             raise RuntimeError("Transform is None")
-
-        for i in tqdm(range(len(self))):
+        def aug(i):
             img = self.transform((self.inputs[i], self.masks[i], self.rots[i]))
             self.inputs_augmented[i] = np.array(img)
             if self.show_file and i > 0 and i % 8 == 0:
-                print_batch(x=torch.tensor(self.inputs[i-8:i]),
-                            x_hat=torch.tensor(self.inputs_augmented[i-8:i]),
+                print_batch(x=torch.tensor(self.inputs[i - 8:i]),
+                            x_hat=torch.tensor(self.inputs_augmented[i - 8:i]),
                             save_path=self.show_file)
+
+        with parallel_backend('threading', n_jobs=self.n_workers):
+            ProgressParallel()(delayed(aug)(i) for i in range(len(self)))
 
 
     def create_dataset(self, folder):
@@ -124,4 +145,4 @@ if __name__ == '__main__':
     t = AAETransform(0.5, '/home/safoex/Documents/data/VOCtrainval_11-May-2012')
     grid = Grid(100, 10)
     ds = AugmentedDataset(grid, fuze_path, transform=t)
-    ds.create_dataset('test_save3')
+    ds.create_dataset('test_saveX')
