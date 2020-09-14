@@ -26,10 +26,10 @@ class ImgAugTransform:
     def __init__(self, prob=0.5):
         self.aug = iaa.Sequential([
             iaa.Sometimes(prob, iaa.Affine(scale=(1.0, 1.2))),
-            iaa.Sometimes(prob, iaa.Add((-8, 8), per_channel=0.3)),
-            iaa.Sometimes(prob, iaa.ContrastNormalization((0.5, 2.2), per_channel=0.3)),
-            iaa.Sometimes(prob, iaa.Multiply((0.9, 1.1), per_channel=0.5)),
-            iaa.Sometimes(prob, iaa.Multiply((0.9, 1.1))),
+            # iaa.Sometimes(prob, iaa.Add((-8, 8), per_channel=0.3)),
+            # iaa.Sometimes(prob, iaa.ContrastNormalization((0.5, 2.2), per_channel=0.3)),
+            # iaa.Sometimes(prob, iaa.Multiply((0.9, 1.1), per_channel=0.5)),
+            # iaa.Sometimes(prob, iaa.Multiply((0.9, 1.1))),
             # iaa.Sometimes(0.3, iaa.Invert(0.2, per_channel=True)),
             iaa.Sometimes(prob, iaa.GaussianBlur(sigma=(0, 1.2))),
             # iaa.Sometimes(prob, iaa.CoarseDropout(p=0.2, size_percent=0.05))
