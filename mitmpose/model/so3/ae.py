@@ -128,7 +128,7 @@ if __name__ == "__main__2":
 
 if __name__ == "__main__":
     dataset = RenderedDataset(500, 128)
-    dataset_folder = 'test_save'
+    dataset_folder = 'test_saveY'
     ae = AE(128, 32, (8, 16, 16, 32))
     dm = AEDataModule(dataset, dataset_folder)
 

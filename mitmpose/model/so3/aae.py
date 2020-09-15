@@ -40,10 +40,10 @@ if __name__ == "__main__":
     # ds.create_dataset('test_save4')
     ds.load_dataset('test_save4')
 
-    ae = AAE(128, 32, (16, 32, 32, 64))
+    ae = AAE(128, 128, (128, 256, 256, 512))
     # train_ae(ae, dataset, iters=3000, save_every=30, save_path='test_save4/recons.jpg', batch_size=128)
-    dm = AEDataModule(ds, 'test_save4')
+    dm = AEDataModule(ds, 'test_save4', batch_size=32)
     pl.callbacks.early_stopping.EarlyStopping()
     trainer = pl.Trainer(gpus=1, max_epochs=60, )
     trainer.fit(ae, datamodule=dm)
-    torch.save(ae.state_dict(), 'test_save4/ae32.pth')
+    torch.save(ae.state_dict(), 'test_save4/ae128.pth')
