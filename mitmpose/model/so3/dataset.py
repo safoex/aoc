@@ -21,7 +21,8 @@ class IndexedDataset(Dataset):
 
 
 class RenderedDataset(Dataset):
-    def __init__(self, grider: Grid, model_path=None, res=128, camera_dist=0.5, render_res=640):
+    def __init__(self, grider: Grid, model_path=None, res=128, camera_dist=0.5, render_res=640,
+                 directional_light_intensity=5, image_path='inputs.npy', masks_path='masks.npy', rots_path='rots.npy'):
         self.size = grider.samples_in_plane * grider.samples_sphere
         self.res = res
         self.model_path = model_path
@@ -32,19 +33,26 @@ class RenderedDataset(Dataset):
         self.camera_dist = camera_dist
         self.render_res = render_res
         self._objren = None
+        self.directional_light_intensity = directional_light_intensity
+        self.image_path = image_path
+        self.masks_path = masks_path
+        self.rots_path = rots_path
 
     @property
     def objren(self):
         if self._objren is None:
-            self._objren = ObjectRenderer(self.model_path, res_side=self.render_res, camera_dist=self.camera_dist)
+            self._objren = ObjectRenderer(self.model_path, res_side=self.render_res, camera_dist=self.camera_dist, intensity=self.directional_light_intensity)
         return self._objren
 
     def create_memmaps(self, folder):
         if not os.path.exists(folder):
             os.makedirs(folder)
 
-        self.inputs = np.memmap(folder + '/inputs.npy', dtype=np.float32, mode='w+', shape=(self.size, 3, self.res, self.res))
-        self.masks = np.memmap(folder + '/masks.npy', dtype=np.uint8, mode='w+', shape=(self.size, 1, self.res, self.res))
+        if self.image_path:
+            self.inputs = np.memmap(folder + '/' + self.image_path, dtype=np.float32, mode='w+', shape=(self.size, 3, self.res, self.res))
+
+        if self.masks_path:
+            self.masks = np.memmap(folder + '/' + self.masks_path, dtype=np.uint8, mode='w+', shape=(self.size, 1, self.res, self.res))
 
     def create_dataset(self, folder):
         if self.model_path is None:
@@ -55,19 +63,24 @@ class RenderedDataset(Dataset):
         self.create_memmaps(folder)
 
         self.rots = grid.astype(np.float32)
-        np.save(folder + '/rots.npy', self.rots)
+
+        if self.rots_path:
+            np.save(folder + '/' + self.rots_path, self.rots)
 
         for i in tqdm(range(len(grid))):
             rot = grid[i]
             color, depth = self.objren.render_and_crop(rot, self.res)
 
-            self.inputs[i, :, :, :] = np.moveaxis(color, 2, 0) / 255.0
-            self.masks[i, :, :, :] = np.reshape(depth > 0, (1, depth.shape[0], depth.shape[1]))
+            if self.image_path:
+                self.inputs[i, :, :, :] = np.moveaxis(color, 2, 0) / 255.0
+
+            if self.masks_path:
+                self.masks[i, :, :, :] = np.reshape(depth > 0, (1, depth.shape[0], depth.shape[1]))
 
     def load_dataset(self, folder):
-        self.inputs = torch.from_numpy(np.memmap(folder + '/inputs.npy', dtype=np.float32, mode="r+", shape=(self.size, 3, self.res, self.res)))
-        self.masks = torch.from_numpy(np.memmap(folder + '/masks.npy', dtype=np.uint8, mode='r+', shape=(self.size, 1, self.res, self.res)))
-        self.rots = torch.from_numpy(np.load(folder + '/rots.npy'))
+        self.inputs = torch.from_numpy(np.memmap(folder + '/' + self.image_path, dtype=np.float32, mode="r+", shape=(self.size, 3, self.res, self.res)))
+        self.masks = torch.from_numpy(np.memmap(folder + '/' + self.masks_path, dtype=np.uint8, mode='r+', shape=(self.size, 1, self.res, self.res)))
+        self.rots = torch.from_numpy(np.load(folder + '/' + self.rots_path))
 
     def to_torch(self):
         self.inputs = torch.from_numpy(self.inputs)
@@ -89,7 +102,8 @@ class RenderedDataset(Dataset):
 
 
 class OnlineRenderDataset(Dataset):
-    def __init__(self, grider: Grid, model_path=None, res=128, camera_dist=0.5, render_res=640):
+    def __init__(self, grider: Grid, model_path=None, res=128, camera_dist=0.5, render_res=640,
+                 directional_light_intensity=10):
         self.size = grider.samples_in_plane * grider.samples_sphere
         self.res = res
         self.model_path = model_path
@@ -97,11 +111,13 @@ class OnlineRenderDataset(Dataset):
         self.camera_dist = camera_dist
         self.render_res = render_res
         self._objren = None
+        self.directional_light_intensity = directional_light_intensity
 
     @property
     def objren(self):
         if self._objren is None:
-            self._objren = ObjectRenderer(self.model_path, res_side=self.render_res, camera_dist=self.camera_dist)
+            self._objren = ObjectRenderer(self.model_path, res_side=self.render_res, camera_dist=self.camera_dist,
+                                          intensity=self.directional_light_intensity)
         return self._objren
 
     def __len__(self):
@@ -125,6 +141,6 @@ class OnlineRenderDataset(Dataset):
 
 if __name__ == '__main__':
     fuze_path = '/home/safoex/Documents/libs/pyrender/examples/models/fuze.obj'
-    grider = Grid(100, 10)
-    ds = RenderedDataset(grider, fuze_path)
-    ds.create_dataset('test_save')
+    grider = Grid(10, 10)
+    ds = RenderedDataset(grider, fuze_path, image_path='inputs_augmented.npy', masks_path=None, rots_path=None)
+    ds.create_dataset('test_save2')

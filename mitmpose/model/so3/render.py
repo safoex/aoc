@@ -10,7 +10,7 @@ from mitmpose.model.so3.grids import fibonacci_sphere_rot
 
 
 class ObjectRenderer:
-    def __init__(self, path, camera_dist=0.5, res_side=640):
+    def __init__(self, path, camera_dist=0.5, res_side=640, intensity=(3,20)):
         mesh = pyrender.Mesh.from_trimesh(trimesh.load(path))
         self.scene = pyrender.Scene()
         self.node = pyrender.Node(mesh=mesh, matrix=np.eye(4))
@@ -28,10 +28,17 @@ class ObjectRenderer:
 
         # light = pyrender.SpotLight(color=np.ones(3), intensity=self.camera_dist * 500, innerConeAngle=np.pi / 16.0)
         # self.light = self.scene.add(light, pose=camera_pose)
-        dl = pyrender.DirectionalLight(color=[1.0, 1.0, 1.0], intensity=20.0)
+        intensity_first = 20
+        if isinstance(intensity, float) or isinstance(intensity, int):
+            intensity_first = intensity
+
+        dl = pyrender.DirectionalLight(color=[1.0, 1.0, 1.0], intensity=intensity_first)
         self.light = self.scene.add(dl)
         self.res_side = res_side
         self.renderer = pyrender.OffscreenRenderer(self.res_side, self.res_side)
+
+        self.directional_intensity = intensity
+
 
     def set_camera_dist(self, camera_dist):
         camera_pose = np.array([
@@ -78,6 +85,12 @@ class ObjectRenderer:
     def render(self, rot):
         pose = np.eye(4)
         pose[:3, :3] = rot
+
+        if isinstance(self.directional_intensity, tuple):
+            dif = self.directional_intensity[1] - self.directional_intensity[0]
+            low = self.directional_intensity[0]
+            self.light.light.intensity = np.random.random() * dif + low
+
         self.scene.set_pose(self.node, pose)
         return self.renderer.render(self.scene)
 
@@ -140,15 +153,16 @@ class ObjectRenderer:
 if __name__ == "__main__":
     from scipy.stats import special_ortho_group
 
-    fuze_path = '/home/safoex/Downloads/t-less_v2_models_reconst/models_reconst/obj_04.ply'
-    objren = ObjectRenderer(fuze_path, 240, 1280)
+    fuze_path = '/home/safoex/Downloads/cat_food/models_fixed/polpa.obj'
+    fuze_path = '/home/safoex/Documents/libs/pyrender/examples/models/drill.obj'
+    objren = ObjectRenderer(fuze_path, 0.5, 640, intensity=(10, 10))
     # color, depth = objren.render(special_ortho_group.rvs(3))
     color, depth = objren.render(special_ortho_group.rvs(3))
     # Show the images
     import time
 
     start = time.clock()
-    for i in range(10):
+    for i in range(2):
         color, depth = objren.render(special_ortho_group.rvs(3))
         # print(objren.bbox(depth))
     # objren.find_optimal_camera_distance()

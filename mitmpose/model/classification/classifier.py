@@ -60,7 +60,12 @@ class ObjectClassifier(pl.LightningModule):
         val_loss = self.loss(y_hat, l)
         _, preds = torch.max(y_hat, 1)
         correct = torch.sum(preds == l).type(torch.float32)
-        return {'val_loss': val_loss, 'corrects': correct}
+        tensorboard = self.logger.experiment
+        preds_n = min(len(x), 3)
+        imgs = torch.cat([x[i] for i in range(preds_n)], 2)
+        tensorboard.add_image('images', imgs.cpu(),
+                              self.current_epoch, dataformats="CHW")
+        return {'val_loss': val_loss, 'corrects': correct, 'preds': y_hat[:preds_n]}
 
     def validation_end(self, outputs):
         avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
@@ -94,15 +99,17 @@ if __name__ == '__main__':
             'model_path': '/home/safoex/Documents/libs/pyrender/examples/models/drill.obj'
         }
     }
-
-    workdir = 'test_many'
+    models_dir = '/home/safoex/Downloads/cat_food/models_fixed/'
+    models_names = ['tonno_low', 'pollo', 'polpa']
+    models = {mname: {'model_path': models_dir + '/' + mname + '.obj', 'camera_dist': 120} for mname in models_names}
+    workdir = 'test_many_reconstr'
     grider = Grid(300, 10)
     ds = ManyObjectsRenderedDataset(grider, models, aae_render_tranform=AAETransform(0.5, '/home/safoex/Documents/data/VOCtrainval_11-May-2012'))
-    ds.load_dataset(workdir)
+    ds.create_dataset(workdir)
 
     trainer = pl.Trainer(gpus=1, max_epochs=20)
 
-    ocmodel = ObjectClassifier(2)
+    ocmodel = ObjectClassifier(3)
     ocdm = ObjectClassifierDataModule(ds)
 
     trainer.fit(ocmodel, ocdm)

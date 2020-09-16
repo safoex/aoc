@@ -16,18 +16,21 @@ class ManyObjectsRenderedDataset(Dataset):
         transforms.Resize(256),
         transforms.RandomCrop(224),
         transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
 
     def __init__(self, grider: Grid, models: dict, aae_render_tranform, classification_transform=default_transform, res=128, camera_dist=0.5,
-                 render_res=640):
+                 render_res=640, intensity_render=10, intensity_augment=(2, 20), n_aug_workers=4):
         self.grider = grider
         self.models = models
         self._datasets = None
         self.default_params = {
             'camera_dist': camera_dist,
             'render_res': render_res,
-            'res': res
+            'res': res,
+            'intensity_render': intensity_render,
+            'intensity_augment': intensity_augment,
+            'n_workers': n_aug_workers
         }
         self.labels = {}
         self.transform = classification_transform
