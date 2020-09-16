@@ -3,7 +3,7 @@ import torch
 from torch.utils.data import Dataset
 from mitmpose.model.so3.grids import Grid
 from mitmpose.model.so3 import ObjectRenderer
-from tqdm import tqdm
+from tqdm.auto import tqdm
 import os
 
 
