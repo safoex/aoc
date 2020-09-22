@@ -103,7 +103,7 @@ class RenderedDataset(Dataset):
 
 class OnlineRenderDataset(Dataset):
     def __init__(self, grider: Grid, model_path=None, res=128, camera_dist=0.5, render_res=640,
-                 directional_light_intensity=10):
+                 directional_light_intensity=5):
         self.size = grider.samples_in_plane * grider.samples_sphere
         self.res = res
         self.model_path = model_path

@@ -22,14 +22,14 @@ class Codebook:
     @property
     def codebook(self):
         if self._codebook is None:
-            dl = DataLoader(self.dataset, batch_size=self.batch_size)
+            dl = DataLoader(self.dataset, batch_size=self.batch_size, shuffle=False)
             model_device = next(self.model.parameters()).device
             self._codebook = torch.zeros((len(self.dataset), self.model.latent_size), dtype=torch.float32).to(device=model_device)
             self.model.eval()
             for data, idcs in tqdm(dl):
                 imgs = data[0]
                 with torch.no_grad():
-                    self._codebook[idcs, :] = self.model.encoder.forward(imgs.cuda())
+                    self._codebook[idcs, :] = self.model.encoder.forward(imgs.to(device=model_device))
 
             self.normalize_(self._codebook)
 
@@ -128,6 +128,14 @@ class Codebook:
         return codes
 
 
+    def verify(self, rots):
+        cl = torch.zeros(rots.shape[0])
+        for i, r in enumerate(rots):
+            best_guess = self.best(self.latent_exact(r))
+            cl[i] = torch.norm(torch.from_numpy(self.grider.grid[best_guess].T.dot(r) - np.eye(3)))
+        return torch.min(cl), torch.max(cl), torch.median(cl), torch.mean(cl)
+
+
 class CodebookGrad(Codebook):
     def __init__(self, model: AAE, dataset: RenderedDataset, batch_size=32):
         super().__init__(model, dataset, batch_size)
@@ -208,7 +216,7 @@ def cross_loss_vis(codebook, N=300):
     plt.show()
 
 
-if __name__ == "__main__":
+if __name__ == "__main__4":
     ae = AAE(128, 32, (16, 32, 32, 64)).cuda()
     ae.load_state_dict(torch.load('test_save4/ae32.pth'))
 
@@ -303,4 +311,48 @@ if __name__ == "__main__2":
     print(cross_loss_test(codebook, 1000))
 
     cross_loss_vis(codebook)
+
+if __name__ == "__main__":
+    root_path = '/home/safoex/Documents/data/aae/cans_pth2/pollo'
+    codebook_path = root_path + '/codebook_asp_big.pt'
+    aae_path = root_path + '/ae128.pth'
+    model_path = '/home/safoex/Downloads/cat_food/models_fixed/pollo.obj'
+    ae = AAE(128, 128, (128, 256, 256, 512)).cuda()
+    ae.load_state_dict(torch.load(aae_path))
+
+    grid = Grid(100, 20)
+    # ds_ren = RenderedDataset(grid, model_path)
+    # ds_ren.create_dataset('test_saveXX')
+    ds_onl = OnlineRenderDataset(grid, model_path)
+    # ds_onl._objren = ds_ren._objren
+
+    # codebook_ren = Codebook(ae, ds_ren)
+    codebook_onl = Codebook(ae, ds_onl)
+
+    # codebook_ren.save('test_ren.pth')
+    codebook_onl.save('test_onl.pth')
+
+    def print_top(crop, cdbk, n=5):
+        scores = cdbk.cos_sim(cdbk.latent(crop))
+        tops_orig, idcs = torch.topk(scores, n)
+        print(tops_orig)
+        return idcs[0]
+
+    # codebooks = [codebook_ren, codebook_onl]
+    codebooks = [codebook_onl]
+    # for cdbk in codebooks:
+    #     print(cdbk.verify(rots))
+
+    rots = special_ortho_group.rvs(3, 100)
+    for r in rots[:10]:
+        # print(r)
+        # render_and_save(r, 'best' + '/%d.png' % 0)
+
+        for i, cdbk in enumerate(codebooks):
+            with torch.no_grad():
+                idx = print_top(ds_onl.objren.render_and_crop(r)[0], cdbk, 1)
+                # print(cdbk.grider.grid[idx])
+                # render_and_save(cdbk.grider.grid[idx], 'best' + '/%d.png' % (i+1))
+
+        print('----')
 
