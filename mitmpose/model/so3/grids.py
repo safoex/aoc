@@ -165,7 +165,7 @@ class GradUniformGrid(Grid):
         self.lx = np.linspace(range_x[0], range_x[1], self.samples_x)
         self.ly = np.linspace(range_y[0], range_y[1], self.samples_y)
         self.lz = np.linspace(range_z[0], range_z[1], self.samples_in_plane)
-        self._interpolator = None
+        # self._interpolator = None
 
         self.extra_rot = extra_rot or Rotation.identity()
 
@@ -190,12 +190,12 @@ class GradUniformGrid(Grid):
         codebook_cpu = codebook.cpu()
         for i, (ix, iy, iz) in enumerate(idcs):
             codebook3d[ix, iy, iz, :] = codebook_cpu[i]
-        self._interpolator = RegularGridInterpolator((self.lx, self.ly, self.lz), codebook3d, method='linear')
+        _interpolator = RegularGridInterpolator((self.lx, self.ly, self.lz), codebook3d, method='linear')
 
         def interp(rots):
             rrots = self.extra_rot.inv() * Rotation.from_matrix(rots)
             eulers = rrots.as_euler(self.eulers_order)
-            return self._interpolator(eulers)
+            return _interpolator(eulers)
 
         return interp
 

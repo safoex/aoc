@@ -77,16 +77,25 @@ class AddBackgroundImageTransform:
 
 
 class AAETransform:
-    def __init__(self, aug_prob=0.5, bg_image_dataset_folder=None, batch_size=None, size=(128, 128), ImgAugTransformClass=ImgAugTransform):
+    def __init__(self, aug_prob=0.5, bg_image_dataset_folder=None, batch_size=None, size=(128, 128), ImgAugTransformClass=ImgAugTransform,
+                 add_bg=True, add_aug=True, add_patches=True):
         self.imgaug = ImgAugTransformClass(aug_prob)
         self.bgimg = AddBackgroundImageTransform(bg_image_dataset_folder, size)
         self.patches = transforms.Compose([transforms.RandomErasing(p=0.5, ratio=(0.3, 3.3), scale=(0.05, 0.15))] * 3)
+        self.add_bg = add_bg
+        self.add_aug = add_aug
+        self.add_patches = add_patches
 
     def __call__(self, batch):
-        img = self.bgimg(batch)
-        img = self.imgaug(img * 255.0) / 255.0
-        img = self.patches(torch.Tensor(img))
-        # img = torch.Tensor(img)
+        img = batch
+        if self.add_bg:
+            img = self.bgimg(img)
+        if self.add_aug:
+            img = self.imgaug(img * 255.0) / 255.0
+        if self.add_patches:
+            img = self.patches(torch.Tensor(img))
+        else:
+            img = torch.Tensor(img)
         return img
 
 

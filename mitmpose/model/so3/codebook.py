@@ -89,7 +89,7 @@ class Codebook:
         torch.save(self.codebook, path)
 
     def load(self, path):
-        self._codebook = torch.load(path)
+        self._codebook = torch.load(path, map_location=self.model.device)
 
     def _cross_loss_idx(self, idcs1, idcs2):
         return self.cos_sim(self.codebook[idcs1], self.codebook[idcs2], True, True)
@@ -294,25 +294,24 @@ if __name__ == "__main__2":
     plt.show()
 
 
-if __name__ == "__main__2":
-    ae = AAE(128, 32, (16, 32, 32, 64)).cuda()
-    ae.load_state_dict(torch.load('test_save4/ae32.pth'))
-
-    fuze_path = '/home/safoex/Documents/libs/pyrender/examples/models/fuze.obj'
-    grider = AxisSwapGrid(20, 20, 40)
-    ds = RenderedDataset(grider, fuze_path)
-    ds_path = 'test_save12'
-    # ds.create_dataset(ds_path)
-    ds.load_dataset(ds_path)
-    codebook = CodebookGrad(ae, ds)
-    # codebook.save(ds_path + '/codebook_axis_grad.pt')
-    codebook.load(ds_path + '/codebook_axis_grad.pt')
-
-    print(cross_loss_test(codebook, 1000))
-
-    cross_loss_vis(codebook)
-
 if __name__ == "__main__":
+    root_path = '/home/safoex/Documents/data/aae/cans_pth2/pollo'
+    codebook_path = root_path + '/codebook_asp_mid.pt'
+    aae_path = root_path + '/ae128.pth'
+    model_path = '/home/safoex/Downloads/cat_food/models_fixed/pollo.obj'
+    ae = AAE(128, 128, (128, 256, 256, 512)).cuda()
+    ae.load_state_dict(torch.load(aae_path))
+
+    grider = AxisSwapGrid(60, 60, 40)
+    ds = OnlineRenderDataset(grider, model_path, camera_dist=140)
+    codebook = CodebookGrad(ae, ds)
+    codebook.load(codebook_path)
+
+    print(cross_loss_test(codebook, 100))
+
+    cross_loss_vis(codebook, 3000)
+
+if __name__ == "__main__3":
     root_path = '/home/safoex/Documents/data/aae/cans_pth2/pollo'
     codebook_path = root_path + '/codebook_asp_big.pt'
     aae_path = root_path + '/ae128.pth'
