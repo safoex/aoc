@@ -4,10 +4,12 @@ from torch.utils.data import Dataset
 from mitmpose.model.so3.grids import Grid
 from mitmpose.model.so3 import ObjectRenderer
 from mitmpose.model.so3.dataset import RenderedDataset
-from mitmpose.model.so3.augment import AugmentedDataset
+from mitmpose.model.so3.augment import AugmentedDataset, AAETransform
+from mitmpose.model.so3.aae import AEDataModule, AAE
 from tqdm import tqdm
 import os
 from torchvision import transforms
+import pytorch_lightning as pl
 
 
 class ManyObjectsRenderedDataset(Dataset):
@@ -35,6 +37,7 @@ class ManyObjectsRenderedDataset(Dataset):
         self.labels = {}
         self.transform = classification_transform
         self.aae_render_transform = aae_render_tranform
+        self.mode = 'class'
 
     @property
     def datasets(self):
@@ -49,6 +52,9 @@ class ManyObjectsRenderedDataset(Dataset):
                 self.labels[model_name] = label
                 label += 1
         return self._datasets
+
+    def set_mode(self, mode):
+        self.mode = mode
 
     def create_dataset(self, folder):
         for model_name, params in self.models.items():
@@ -71,4 +77,27 @@ class ManyObjectsRenderedDataset(Dataset):
 
         assert obj is not None
 
-        return self.transform(self.datasets[obj][idx][-1]), self.labels[obj]
+        if self.mode == 'class':
+            return self.transform(self.datasets[obj][idx][-1]), self.labels[obj]
+        else:
+            return self.datasets[obj][idx]
+
+
+if __name__ == '__main__':
+    models_dir = '/home/safoex/Downloads/cat_food/models_fixed/'
+    models_names = ['tonno_low', 'pollo', 'polpa']
+    models = {mname: {'model_path': models_dir + '/' + mname + '.obj', 'camera_dist': 140} for mname in models_names}
+    workdir = 'test_many_reconstr'
+    grider = Grid(30, 10)
+    ds = ManyObjectsRenderedDataset(grider, models,
+                                    aae_render_tranform=AAETransform(0.5, '/home/safoex/Documents/data/VOCtrainval_11-May-2012', add_aug=False))
+    ds.set_mode('aae')
+    ds.load_dataset(workdir)
+
+    trainer = pl.Trainer(gpus=1, max_epochs=100)
+
+    dm = AEDataModule(ds, workdir)
+    ae = AAE(128, 64, (32, 64, 64, 128))
+
+    trainer.fit(ae, dm)
+

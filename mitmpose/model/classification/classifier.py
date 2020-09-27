@@ -101,7 +101,7 @@ if __name__ == '__main__':
     }
     models_dir = '/home/safoex/Downloads/cat_food/models_fixed/'
     models_names = ['tonno_low', 'pollo', 'polpa']
-    models = {mname: {'model_path': models_dir + '/' + mname + '.obj', 'camera_dist': 120} for mname in models_names}
+    models = {mname: {'model_path': models_dir + '/' + mname + '.obj', 'camera_dist': 140} for mname in models_names}
     workdir = 'test_many_reconstr'
     grider = Grid(300, 10)
     ds = ManyObjectsRenderedDataset(grider, models, aae_render_tranform=AAETransform(0.5, '/home/safoex/Documents/data/VOCtrainval_11-May-2012'))
