@@ -7,21 +7,26 @@ import trimesh
 import pyrender
 from PIL import Image
 from mitmpose.model.so3.grids import fibonacci_sphere_rot
+import scipy
 
 
 class ObjectRenderer:
     def __init__(self, path, camera_dist=0.5, res_side=640, intensity=(3,20)):
-        mesh = pyrender.Mesh.from_trimesh(trimesh.load(path))
+        tmesh = trimesh.load(path)
+        self.mesh_size = scipy.linalg.norm(np.array(tmesh.bounding_box_oriented.extents))
+        self.camera_dist_coefficient = 1.5
+        mesh = pyrender.Mesh.from_trimesh(tmesh)
         self.scene = pyrender.Scene()
         self.node = pyrender.Node(mesh=mesh, matrix=np.eye(4))
         self.scene.add_node(self.node)
 
         self.camera = pyrender.PerspectiveCamera(yfov=np.pi / 3.0)
-        self.camera_dist = camera_dist
+        self.camera_dist = camera_dist or self.mesh_size * self.camera_dist_coefficient
+        print(self.camera_dist)
         camera_pose = np.array([
             [1.0, 0.0, 0.0, 0.0],
             [0.0, 1.0, 0.0, 0.0],
-            [0.0, 0.0, 1.0, camera_dist],
+            [0.0, 0.0, 1.0, self.camera_dist],
             [0.0, 0.0, 0.0, 1.0],
         ])
         self.cam_node = self.scene.add(self.camera, pose=camera_pose)
@@ -155,7 +160,7 @@ if __name__ == "__main__":
 
     fuze_path = '/home/safoex/Downloads/cat_food/models_fixed/polpa.obj'
     fuze_path = '/home/safoex/Documents/libs/pyrender/examples/models/drill.obj'
-    objren = ObjectRenderer(fuze_path, 0.5, 640, intensity=(10, 10))
+    objren = ObjectRenderer(fuze_path, None, 640, intensity=(10, 10))
     # color, depth = objren.render(special_ortho_group.rvs(3))
     color, depth = objren.render(special_ortho_group.rvs(3))
     # Show the images
