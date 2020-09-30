@@ -1,4 +1,12 @@
-# Meet-in-the-Middle network for 6D Pose Estimation
+# ML part for Active Pose Estimation and Classification for Ambigous Objects
 
+## Augmented Autoencoder:
 
-to train AAE check out [aae.py](mitmpose/model/pose/aae/aae.py)
+## Datasets:
+
+## Grids:
+
+## Codebooks:
+
+## Classification:
+
