@@ -1,20 +1,17 @@
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torchsummary import summary
 
-from mitmpose.model.so3 import EncoderCNN
-from mitmpose.model.so3.decoder import Decoder
-from mitmpose.model.so3.dataset import RenderedDataset
-from mitmpose.model.so3.augment import AugmentedDataset, print_batch
+from mitmpose.model.pose import EncoderCNN
+from mitmpose.model.pose.aae.decoder import Decoder
+from mitmpose.model.pose.datasets.dataset import RenderedDataset
+from mitmpose.model.pose.datasets.augment import print_batch
 
 from torch.utils.data import DataLoader
-from torchvision import transforms
 
 from logutil import TimeSeries
 import pytorch_lightning as pl
-from torch.utils.data import random_split
 
 
 class AE(pl.LightningModule):

@@ -1,20 +1,9 @@
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-from torchsummary import summary
 
-from mitmpose.model.so3 import EncoderCNN
-from mitmpose.model.so3.decoder import Decoder
-from mitmpose.model.so3.dataset import RenderedDataset
-from mitmpose.model.so3.grids import Grid
-from mitmpose.model.so3.augment import AugmentedDataset, AAETransform
+from mitmpose.model.pose.grids.grids import Grid
+from mitmpose.model.pose.datasets.augment import AugmentedDataset, AAETransform
 
-from torch.utils.data import DataLoader
-from torchvision import transforms
-
-from logutil import TimeSeries
-from mitmpose.model.so3.ae import AE, print_batch, AEDataModule
+from mitmpose.model.pose.aae.ae import AE, AEDataModule
 import pytorch_lightning as pl
 
 

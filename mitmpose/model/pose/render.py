@@ -6,7 +6,7 @@ import numpy as np
 import trimesh
 import pyrender
 from PIL import Image
-from mitmpose.model.so3.grids import fibonacci_sphere_rot
+from mitmpose.model.pose.grids.grids import fibonacci_sphere_rot
 import scipy
 
 
@@ -160,6 +160,7 @@ if __name__ == "__main__":
 
     fuze_path = '/home/safoex/Downloads/cat_food/models_fixed/polpa.obj'
     fuze_path = '/home/safoex/Documents/libs/pyrender/examples/models/drill.obj'
+    fuze_path = '/home/safoex/Documents/data/aae/models/scans/cleaner.obj'
     objren = ObjectRenderer(fuze_path, None, 640, intensity=(10, 10))
     # color, depth = objren.render(special_ortho_group.rvs(3))
     color, depth = objren.render(special_ortho_group.rvs(3))

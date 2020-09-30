@@ -1,8 +1,8 @@
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-from mitmpose.model.so3.grids import Grid
-from mitmpose.model.so3 import ObjectRenderer
+from mitmpose.model.pose.grids.grids import Grid
+from mitmpose.model.pose import ObjectRenderer
 from tqdm.auto import tqdm
 import os
 

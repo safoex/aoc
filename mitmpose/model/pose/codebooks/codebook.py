@@ -1,10 +1,10 @@
-from mitmpose.model.so3.aae import AAE
-from mitmpose.model.so3.dataset import RenderedDataset, IndexedDataset, OnlineRenderDataset
-from mitmpose.model.so3.grids import Grid, GradUniformGrid, AxisSwapGrid
+from mitmpose.model.pose.aae.aae import AAE
+from mitmpose.model.pose.datasets.dataset import RenderedDataset, IndexedDataset, OnlineRenderDataset
+from mitmpose.model.pose.grids.grids import Grid, GradUniformGrid, AxisSwapGrid
 from torch.utils.data import DataLoader
 import torch
 
-from mitmpose.model.so3.render import ObjectRenderer
+from mitmpose.model.pose.render import ObjectRenderer
 from scipy.stats import special_ortho_group
 import numpy as np
 from tqdm import  tqdm
@@ -197,10 +197,6 @@ def cross_loss_test(codebook, n=300):
     cl_exact = codebook.cross_loss_exact(r1, r2)
     cl_diff = torch.abs(cl_apprx - cl_exact)
     return torch.min(cl_diff), torch.max(cl_diff), torch.median(cl_diff)
-
-
-from scipy.spatial.transform import Rotation
-from matplotlib import pyplot as plt
 
 
 def cross_loss_vis(codebook, N=300):
