@@ -16,7 +16,7 @@ class ManyAmbigousObjectsLabeledRenderedDataset(ManyObjectsRenderedDataset):
     @property
     def fin_labels(self):
         if self._labels is None:
-            self._labels = self.labeler.fin_labels[:, None, :, :]
+            self._labels = self.labeler.fin_labels[:, None, :, :].cuda()
             if self.grider.samples_in_plane > 1:
                 self._labels = self._labels.repeat(1, self.grider.samples_in_plane, 1, 1)
 
@@ -60,7 +60,7 @@ if __name__ == '__main__':
 
     models = {mname: {'model_path': models_dir + '/' + mname + '.obj'} for mname in models_names}
     workdir = '/home/safoex/Documents/data/aae/test_labeler'
-    grider = Grid(300, 1)
+    grider = Grid(300, 3)
     grider_codebook = Grid(1000, 10)
 
     ae = AAE(128, 256, (128, 256, 256, 512))
@@ -74,4 +74,5 @@ if __name__ == '__main__':
                                                    aae_render_tranform=AAETransform(0.5, '/home/safoex/Documents/data/VOCtrainval_11-May-2012', add_aug=False))
     ds.labeler.load(workdir)
     ds.create_dataset(workdir)
+    ds.fin_labels
 
