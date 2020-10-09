@@ -157,10 +157,13 @@ class ObjectRenderer:
 
 if __name__ == "__main__":
     from scipy.stats import special_ortho_group
+    from scipy.spatial.transform import Rotation
 
     fuze_path = '/home/safoex/Downloads/cat_food/models_fixed/polpa.obj'
     fuze_path = '/home/safoex/Documents/libs/pyrender/examples/models/drill.obj'
     fuze_path = '/home/safoex/Documents/data/aae/models/scans/cleaner.obj'
+    # fuze_path = '/home/safoex/Documents/data/aae/models/scans/tiramisu.obj'
+    fuze_path = '/home/safoex/Documents/data/aae/models/scans/fragola.obj'
     objren = ObjectRenderer(fuze_path, None, 640, intensity=(10, 10))
     # color, depth = objren.render(special_ortho_group.rvs(3))
     color, depth = objren.render(special_ortho_group.rvs(3))
@@ -168,8 +171,22 @@ if __name__ == "__main__":
     import time
 
     start = time.clock()
-    for i in range(2):
-        color, depth = objren.render(special_ortho_group.rvs(3))
+    # for i in range(2):
+    R = special_ortho_group.rvs(3)
+    euler = np.array([2.51397823, -1.1410451,  -0.72252894])
+    # input tiramisu
+    euler = np.array([0.53941419,  0.51667277, -2.09448489])
+    euler = np.array([2.194764,   0.23944807, 2.43638052])
+    euler = np.array([ 1.73685346,  0.39140481, -0.6275145 ])
+
+    # results fragola
+    # euler = np.array([ 0.56844635,  0.46664381, -2.13957151])
+    # euler = np.array([2.16805872, 0.32883891, 2.37892383])
+    # euler = np.array([ 1.72305475,  0.43310983, -0.70947355])
+    euler = np.array([-0.49961313, -0.46085245,  2.33708826])
+    R = Rotation.from_euler('xyz', euler).as_matrix()
+    color, depth = objren.render(R)
+    print(Rotation.from_matrix(R).as_euler('xyz'))
         # print(objren.bbox(depth))
     # objren.find_optimal_camera_distance()
     fin = time.clock()

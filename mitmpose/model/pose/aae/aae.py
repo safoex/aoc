@@ -7,7 +7,6 @@ from mitmpose.model.pose.aae.ae import AE, AEDataModule
 import pytorch_lightning as pl
 
 
-
 class AAE(AE):
     def __init__(self, image_size=128, latent_size=128, filters=(128, 256, 256, 512), lae_inside=None):
         super().__init__(image_size, latent_size, filters, lae_inside)

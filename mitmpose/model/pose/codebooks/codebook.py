@@ -4,6 +4,9 @@ from mitmpose.model.pose.grids.grids import Grid, GradUniformGrid, AxisSwapGrid
 from torch.utils.data import DataLoader
 import torch
 
+from scipy.spatial.transform import Rotation
+from matplotlib import pyplot as plt
+
 from mitmpose.model.pose.render import ObjectRenderer
 from scipy.stats import special_ortho_group
 import numpy as np
@@ -199,17 +202,21 @@ def cross_loss_test(codebook, n=300):
     return torch.min(cl_diff), torch.max(cl_diff), torch.median(cl_diff)
 
 
-def cross_loss_vis(codebook, N=300):
+def cross_loss_vis(codebook, N=300, save_path=None):
     eulers = np.zeros((N, 3), dtype=np.float32)
     eulers[:, 1] = np.linspace(-np.pi / 4, +np.pi / 4, N)
-    eulers[:, 0] = np.random.random(N) * np.pi / 20
-    eulers[:, 2] = np.random.random(N) * np.pi / 20
+    eulers[:, 0] = np.random.random(N) * np.pi / 10
+    eulers[:, 2] = np.random.random(N) * np.pi / 10
 
     rots = Rotation.from_euler('xyz', eulers).as_matrix()
 
     test = codebook.cos_sim(codebook.latent_approx(rots), codebook.latent_exact(rots))
     plt.scatter(eulers[:, 1], np.array(test.cpu()))
-    plt.show()
+    if save_path is None:
+        plt.show()
+    else:
+        plt.savefig(save_path)
+        plt.clf()
 
 
 if __name__ == "__main__4":
@@ -281,11 +288,10 @@ if __name__ == "__main__2":
     eulers[:, 2] = np.random.random(N) * np.pi/20
 
 
-    from scipy.spatial.transform import Rotation
     rots = Rotation.from_euler('xyz', eulers).as_matrix()
 
     test = codebook.cos_sim(codebook.latent_approx(rots), codebook.latent_exact(rots))
-    from matplotlib import pyplot as plt
+
     plt.scatter(eulers[:, 1], np.array(test.cpu()))
     plt.show()
 
@@ -299,13 +305,48 @@ if __name__ == "__main__":
     ae.load_state_dict(torch.load(aae_path))
 
     grider = AxisSwapGrid(60, 60, 40)
-    ds = OnlineRenderDataset(grider, model_path, camera_dist=140)
+    grids = {
+        'mid': AxisSwapGrid(60, 60, 40, method='linear'),
+        'small': AxisSwapGrid(20, 20, 40, method='linear'),
+        'big': AxisSwapGrid(100, 100, 40, method='linear'),
+        'gu': GradUniformGrid(120, 60, 40, method='linear'),
+        'gu_small': GradUniformGrid(60, 30, 40, method='linear')
+    }
+    grids_nn = {
+        'mid': AxisSwapGrid(60, 60, 40, method='nearest'),
+        'small': AxisSwapGrid(20, 20, 40, method='nearest'),
+        'big': AxisSwapGrid(100, 100, 40, method='nearest'),
+        'gu': GradUniformGrid(120, 60, 40, method='nearest'),
+        'gu_small': GradUniformGrid(60, 30, 40, method='nearest'),
+    }
+    ds = OnlineRenderDataset(grider, model_path, camera_dist=None)
     codebook = CodebookGrad(ae, ds)
     codebook.load(codebook_path)
 
-    print(cross_loss_test(codebook, 100))
+    codebooks = {
+        name: CodebookGrad(ae, OnlineRenderDataset(grid, model_path, camera_dist=None))
+        for name, grid in grids.items()
+    }
+    codebooks_nn = {
+        name: CodebookGrad(ae, OnlineRenderDataset(grid, model_path, camera_dist=None))
+        for name, grid in grids_nn.items()
+    }
+    for name, cdbk in codebooks.items():
+        cdbk.load(root_path + '/codebook_asp_%s.pt' % name)
+    for name, cdbk in codebooks_nn.items():
+        cdbk.load(root_path + '/codebook_asp_%s.pt' % name)
 
-    cross_loss_vis(codebook, 3000)
+    workdir = '/home/safoex/Documents/data/aae/cans_pth2/pollo' + '/codebook_evaluation'
+    import os
+    if not os.path.exists(workdir):
+        os.mkdir(workdir)
+    for name, cdbk in codebooks.items():
+        print(name)
+        print(cross_loss_test(cdbk, 3000))
+        cross_loss_vis(cdbk, 3000, workdir + '/%s.png' % name)
+        cdbk_nn = codebooks_nn[name]
+        print(cross_loss_test(cdbk_nn, 3000))
+        cross_loss_vis(cdbk_nn, 3000, workdir + '/%s_nn.png' % name)
 
 if __name__ == "__main__3":
     root_path = '/home/safoex/Documents/data/aae/cans_pth2/pollo'

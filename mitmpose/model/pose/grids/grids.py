@@ -156,7 +156,8 @@ import itertools
 
 class GradUniformGrid(Grid):
     def __init__(self, samples_x, samples_y, samples_in_plane,
-                 range_x=(-np.pi, np.pi), range_y=(-np.pi / 2, np.pi / 2), range_z=(-np.pi, np.pi), eulers_order='xyz', extra_rot=None):
+                 range_x=(-np.pi, np.pi), range_y=(-np.pi / 2, np.pi / 2), range_z=(-np.pi, np.pi), eulers_order='xyz',
+                 extra_rot=None, method='linear'):
         super().__init__(samples_x * samples_y, samples_in_plane)
         self.samples_x = samples_x
         self.samples_y = samples_y
@@ -175,6 +176,8 @@ class GradUniformGrid(Grid):
             self.samples_x, self.samples_y = self.samples_y, self.samples_x
             self._x_step, self._y_step = self._y_step, self._x_step
 
+        self.method = 'linear'
+
     @property
     def grid(self):
         if self._grid is None:
@@ -190,7 +193,7 @@ class GradUniformGrid(Grid):
         codebook_cpu = codebook.cpu()
         for i, (ix, iy, iz) in enumerate(idcs):
             codebook3d[ix, iy, iz, :] = codebook_cpu[i]
-        _interpolator = RegularGridInterpolator((self.lx, self.ly, self.lz), codebook3d, method='linear')
+        _interpolator = RegularGridInterpolator((self.lx, self.ly, self.lz), codebook3d, method=self.method)
 
         def interp(rots):
             rrots = self.extra_rot.inv() * Rotation.from_matrix(rots)
@@ -203,15 +206,17 @@ class GradUniformGrid(Grid):
 
 
 class AxisSwapGrid(Grid):
-    def __init__(self, samples_x, samples_y, samples_in_plane, delta_y=np.pi / 12):
+    def __init__(self, samples_x, samples_y, samples_in_plane, delta_y=np.pi / 12, method='linear'):
         super().__init__(samples_x * samples_y, samples_in_plane)
 
         assert samples_y % 2 == 0
         self.grids = [GradUniformGrid(samples_x, samples_y // 2, samples_in_plane,
-                                      range_y=(-np.pi / 4 - delta_y, np.pi / 4 + delta_y), extra_rot=erot)
+                                      range_y=(-np.pi / 4 - delta_y, np.pi / 4 + delta_y),
+                                      extra_rot=erot,method=method)
                       for erot in (None, Rotation.from_euler('xyz', [np.pi/2, 0, 0]))]
 
         self._grid = None
+        self.method = method
 
     @property
     def grid(self):

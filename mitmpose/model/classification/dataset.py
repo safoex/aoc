@@ -15,6 +15,14 @@ class ManyObjectsRenderedDataset(Dataset):
         # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
 
+    transform_normalize = transforms.Compose([
+        transforms.ToPILImage(),
+        transforms.Resize(236),
+        transforms.RandomCrop(224),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    ])
+
     def __init__(self, grider: Grid, models: dict, aae_render_tranform, classification_transform=None, res=128, camera_dist=None,
                  render_res=640, intensity_render=10, intensity_augment=(2, 20), n_aug_workers=4):
         self.grider = grider
