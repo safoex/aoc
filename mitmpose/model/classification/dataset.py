@@ -1,6 +1,7 @@
 from torch.utils.data import Dataset
 from mitmpose.model.pose.grids.grids import Grid
 from mitmpose.model.pose.datasets.augment import AugmentedDataset, AAETransform
+from mitmpose.model.pose.datasets.dataset import OnlineRenderDataset
 from mitmpose.model.pose.aae.aae import AEDataModule, AAE
 from torchvision import transforms
 import pytorch_lightning as pl
@@ -24,7 +25,7 @@ class ManyObjectsRenderedDataset(Dataset):
     ])
 
     def __init__(self, grider: Grid, models: dict, aae_render_tranform, classification_transform=None, res=128, camera_dist=None,
-                 render_res=640, intensity_render=10, intensity_augment=(2, 20), n_aug_workers=4):
+                 render_res=640, intensity_render=10, intensity_augment=(2, 20), n_aug_workers=4, online=False):
         self.grider = grider
         self.models = models
         self._datasets = None
@@ -40,6 +41,15 @@ class ManyObjectsRenderedDataset(Dataset):
         self.transform = classification_transform or self.default_transform
         self.aae_render_transform = aae_render_tranform
         self.mode = 'class'
+        self.class_ds = AugmentedDataset
+
+        self.online = online
+        if self.online:
+            self.class_ds = OnlineRenderDataset
+            self.default_params['directional_light_intensity'] = intensity_augment
+            self.default_params.pop('intensity_augment')
+            self.default_params.pop('intensity_render')
+
 
     @property
     def datasets(self):
@@ -50,7 +60,7 @@ class ManyObjectsRenderedDataset(Dataset):
                 mparams = self.default_params.copy()
                 mparams.update(params)
                 mparams['transform'] = self.aae_render_transform
-                self.datasets[model_name] = AugmentedDataset(self.grider, **mparams)
+                self.datasets[model_name] = self.class_ds(self.grider, **mparams)
                 self.labels[model_name] = label
                 label += 1
         return self._datasets
@@ -80,7 +90,10 @@ class ManyObjectsRenderedDataset(Dataset):
         assert obj is not None
 
         if self.mode == 'class':
-            return self.transform(self.datasets[obj][idx][-1]), self.labels[obj]
+            ds_idx = -1
+            if self.online:
+                ds_idx = 0
+            return self.transform(self.datasets[obj][idx][ds_idx]), self.labels[obj]
         else:
             return self.datasets[obj][idx]
 

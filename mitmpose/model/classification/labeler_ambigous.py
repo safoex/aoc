@@ -30,6 +30,11 @@ class AmbigousObjectsLabeler:
         self.knn_median = knn_median
         self._knn_index_grid = None
 
+        self._sorted = None
+        self._fin_labels = None
+        self.borderline = 0.25
+        self.width = 0.1
+
 
     @property
     def codebooks(self):
@@ -140,36 +145,68 @@ class AmbigousObjectsLabeler:
         torch.save(self.labels, workdir + '/' + 'labels.pt')
         torch.save(self.similarities, workdir + '/' + 'similarities.pt')
         torch.save(self._eulers, workdir + '/' + 'eulers.pt')
-        torch.save(self._eulers, workdir + '/' + 'searched.pt')
+        torch.save(self._searched, workdir + '/' + 'searched.pt')
+        torch.save(self.fin_labels, workdir + '/' + 'fin_labels.pt')
 
     def load(self, workdir):
         self.load_codebooks(workdir)
-        self._labels = torch.load(workdir + '/' + 'labels.pt', map_location=self.ae.device)
-        self._simililarities = torch.load(workdir + '/' + 'similarities.pt', map_location=self.ae.device)
+        self._labels = torch.load(workdir + '/' + 'labels.pt')
+        self._simililarities = torch.load(workdir + '/' + 'similarities.pt')
         self._eulers = torch.load(workdir + '/' + 'eulers.pt')
-        self._searched = torch.load(workdir + '/' + 'searched.pt')
+        self._searched = torch.load(workdir + '/' + 'searched.pt').cpu()
+        self._fin_labels = torch.load(workdir + '/' + 'fin_labels.pt')
 
     @property
     def smooth_labels(self):
         if self._smoothen is None:
-
+            self._smoothen = torch.zeros_like(self._searched)
+            for i in range(len(models)):
+                for j in range(len(models)):
+                    if i != j:
+                        for k in range(self._smoothen.shape[0]):
+                            self._smoothen[k, i, j] = torch.median(self._searched[self.knn_index_grid[k], i, j])
 
         return self._smoothen
 
     @property
     def knn_index_grid(self):
         if self._knn_index_grid is None:
-            self._knn_index_grid = torch.zeros((self.grider.grid.shape[0], self.knn_median), dtype=torch.int)
-            grid_eulers = Rotation.from_matrix(self.grider.grid).as_eulers('xyz')
+            self._knn_index_grid = torch.zeros((self.grider.grid.shape[0], self.knn_median), dtype=torch.long)
+            grid_eulers = Rotation.from_matrix(self.grider.grid).as_euler('xyz')
             for i, eul in enumerate(grid_eulers):
                 dif = np.abs(grid_eulers - eul)
-                for j, maxdif in enumerate([2 * np.pi, np.pi, 2* np.pi]):
+                for j, maxdif in enumerate([2 * np.pi, np.pi, 2 * np.pi]):
                     dif[:, j] = np.min(np.array([dif[:, j], maxdif - dif[:, j]]), axis=0)
                 torch_dif = torch.from_numpy(np.linalg.norm(dif, axis=1))
-                self._knn_index_grid[i, :] = torch.topk(torch_dif, self.knn_median)[1]
+                self._knn_index_grid[i, :] = torch.topk(-torch_dif, self.knn_median)[1]
 
         return self._knn_index_grid
 
+    @property
+    def fin_labels(self):
+        if self._fin_labels is None:
+            self._sorted = torch.zeros_like(self.smooth_labels)
+            self._fin_labels = torch.ones_like(self.labels)
+            for i in range(len(models)):
+                for j in range(len(models)):
+                    if i != j:
+                        arg_sorted = torch.argsort(self.smooth_labels[:, i, j])
+                        self._sorted[arg_sorted, i, j] = torch.linspace(0, 1, len(self._sorted[:, i, j]))
+                        self._fin_labels[:, i, j] = self.to_curve(self._sorted[:, i, j], self.borderline, self.width)
+            self._fin_labels /= torch.sum(self._fin_labels, dim=2, keepdim=True)
+
+        return self._fin_labels
+
+    @staticmethod
+    def to_curve(ar, borderline, width):
+        to_one = ar > borderline + width / 2
+        to_zero = ar < borderline - width / 2
+        to_interm = torch.logical_and(borderline - width / 2 < ar, ar < borderline + width / 2)
+        res = torch.zeros_like(ar)
+        res[to_one] = 1
+        res[to_zero] = 0
+        res[to_interm] = torch.sigmoid((ar[to_interm] - borderline) / (5 * width))
+        return res
 
 def render_and_save(ds, rot, path=None, rec_path=None, ae=None):
     img, _ = ds.objren.render_and_crop(rot)
@@ -182,6 +219,30 @@ def render_and_save(ds, rot, path=None, rec_path=None, ae=None):
         img = transforms.ToPILImage()(t_img).convert("RGB")
         img.save(path)
 
+
+def print_out_sim_views(labeler: AmbigousObjectsLabeler, i_from, i_to, top_n, wdir_save):
+    cdbks = labeler.codebooks
+
+
+    model_from = models_names[i_from]
+    model_to = models_names[i_to]
+
+    tops, idcs = torch.topk(-labeler.smooth_labels[:, i_from, i_to], top_n)
+
+    print(tops)
+    i_min = idcs[0].item()
+    rot_min = labeler.grider.grid[i_min]
+
+
+    if not os.path.exists(wdir_save):
+        os.mkdir(wdir_save)
+
+    for i, idx in enumerate(idcs):
+        render_and_save(ods[model_from], rot=labeler.grider.grid[idx.item()], path=wdir_save + '/' + 'top%d.png' % i)
+        euler_found = labeler._eulers[idx.item(), i_from, i_to, :]
+        # print(euler_found)
+        rot_found = Rotation.from_euler('xyz', euler_found).as_matrix()
+        render_and_save(ods[model_to], rot=rot_found, path=wdir_save + '/' + 'top%d_f.png' % i)
 
 if __name__ == "__main__":
     # models_dir = '/home/safoex/Downloads/cat_food/models_fixed/'
@@ -203,7 +264,7 @@ if __name__ == "__main__":
     labeler = AmbigousObjectsLabeler(models, grider_label=grider, grider_codebook=Grid(1000, 10), ae=ae)
     # labeler.load_codebooks(workdir)
     labeler.load(workdir)
-
+    # labeler.save(workdir)
 
     test_on = 'pistacchi'
     online_ds_fragola = OnlineRenderDataset(grider, models['fragola']['model_path'], camera_dist=None)
@@ -217,31 +278,14 @@ if __name__ == "__main__":
     # euler = np.array([2.194764,   0.23944807, 2.43638052])
     # euler = np.array([ 1.73685346,  0.39140481, -0.6275145 ])
     # euler = np.array([-0.52187396, -0.3788934,   2.31570534])
-    cdbks = labeler.codebooks
 
     i_from = 1
-    i_to = 2
-    top_n = 200
+    i_to = 0
+    top_n = 300
+    wdir_save = workdir + '/' + 'tops_pi_fr_smooth'
+    labeler.knn_median = 10
 
-    model_from = models_names[i_from]
-    model_to = models_names[i_to]
-
-    tops, idcs = torch.topk(-labeler._searched[:, i_from, i_to], top_n)
-
-    print(tops)
-    i_min = idcs[0].item()
-    rot_min = labeler.grider.grid[i_min]
-
-    wdir_save = workdir + '/' + 'tops_pi_ti'
-    if not os.path.exists(wdir_save):
-        os.mkdir(wdir_save)
-
-    for i, idx in enumerate(idcs):
-        render_and_save(ods[model_from], rot=labeler.grider.grid[idx.item()], path=wdir_save + '/' + 'top%d.png' % i)
-        euler_found = labeler._eulers[idx.item(), i_from, i_to, :]
-        # print(euler_found)
-        rot_found = Rotation.from_euler('xyz', euler_found).as_matrix()
-        render_and_save(ods[model_to], rot=rot_found, path=wdir_save + '/' + 'top%d_f.png' % i)
+    # print_out_sim_views(labeler, i_from, i_to, top_n, wdir_save)
 
     # print(Rotation.from_matrix(rot_min).as_euler('xyz'))
     # color, depth = online_ds.objren.render(labeler.grider.grid[i_min])
@@ -252,18 +296,18 @@ if __name__ == "__main__":
     #
     # ae_ideal.load_state_dict(torch.load('/home/safoex/Documents/data/aae/cans_pth2/pollo/ae128.pth'))
     #
-    # m_i = labeler.model_idx[test_on]
-    # for i, x in enumerate(np.random.randint(0, len(grider.grid), 10)):
-    #     rot = grider.grid[x]
-    #     wdir = workdir + '/' + 'test_%d' % i
-    #
-    #     if os.path.exists(wdir):
-    #         shutil.rmtree(wdir, ignore_errors=True)
-    #
-    #     os.mkdir(wdir)
-    #
-    #     label = str(labeler.labels[x, m_i, :])
-    #     render_and_save(online_ds, rot, wdir + '/' + 'rendered_p_%s.png' % label, wdir + '/' + 'rec.png', ae)
-    #     # render_and_save(online_ds, rot, None, wdir + '/' + 'rec_ideal.png', ae_ideal)
+    m_i = labeler.model_idx[test_on]
+    for i, x in enumerate(np.random.randint(0, len(grider.grid), 10)):
+        rot = grider.grid[x]
+        wdir = workdir + '/' + 'test_%d' % i
+
+        if os.path.exists(wdir):
+            shutil.rmtree(wdir, ignore_errors=True)
+
+        os.mkdir(wdir)
+
+        label = str(labeler.fin_labels[x, m_i, :])
+        render_and_save(online_ds, rot, wdir + '/' + 'rendered_p_%s.png' % label, wdir + '/' + 'rec.png', ae)
+        # render_and_save(online_ds, rot, None, wdir + '/' + 'rec_ideal.png', ae_ideal)
 
 
