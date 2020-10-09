@@ -16,10 +16,10 @@ class ManyAmbigousObjectsLabeledRenderedDataset(ManyObjectsRenderedDataset):
     @property
     def fin_labels(self):
         if self._labels is None:
-            self._labels = self.labeler.fin_labels[:, None, :, :].cuda()
+            self._labels = self.labeler.fin_labels.cuda()
             if self.grider.samples_in_plane > 1:
-                self._labels = self._labels.repeat(1, self.grider.samples_in_plane, 1, 1)
-
+                # self._labels = self._labels.repeat(self.grider.samples_in_plane, 1, 1)
+                self._labels = torch.repeat_interleave(self._labels, repeats=self.grider.samples_in_plane, dim=0)
         return self._labels
 
     def create_dataset(self, folder):
