@@ -1,5 +1,6 @@
 from mitmpose.model.classification.dataset import ManyObjectsRenderedDataset, Grid
 from mitmpose.model.classification.labeler_ambigous import AmbigousObjectsLabeler
+import torch
 
 
 class ManyAmbigousObjectsLabeledRenderedDataset(ManyObjectsRenderedDataset):
