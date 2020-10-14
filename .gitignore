@@ -4,6 +4,7 @@ venv/*
 *.log
 mitmpose/model/reconstructions/
 *.npy
+**/__pycache__/
 mitmpose/model/pose/__pycache__/
 mitmpose/model/pose/aae/__pycache__/
 mitmpose/model/pose/codebooks/__pycache__/

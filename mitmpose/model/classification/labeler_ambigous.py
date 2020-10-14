@@ -223,7 +223,6 @@ def render_and_save(ds, rot, path=None, rec_path=None, ae=None):
 def print_out_sim_views(labeler: AmbigousObjectsLabeler, i_from, i_to, top_n, wdir_save):
     cdbks = labeler.codebooks
 
-
     model_from = models_names[i_from]
     model_to = models_names[i_to]
 

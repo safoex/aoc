@@ -22,7 +22,6 @@ class ObjectRenderer:
 
         self.camera = pyrender.PerspectiveCamera(yfov=np.pi / 3.0)
         self.camera_dist = camera_dist or self.mesh_size * self.camera_dist_coefficient
-        print(self.camera_dist)
         camera_pose = np.array([
             [1.0, 0.0, 0.0, 0.0],
             [0.0, 1.0, 0.0, 0.0],
@@ -141,7 +140,6 @@ class ObjectRenderer:
 
         return np.array(Image.fromarray(color).crop(final_box).resize((target_res, target_res)), dtype=np.float32), \
                np.array(Image.fromarray((depth > 0).astype(np.uint8)).crop(final_box).resize((128, 128)), dtype=np.float32)
-
 
     def test_show(self, color, depth):
         import matplotlib.pyplot as plt

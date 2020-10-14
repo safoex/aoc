@@ -1,7 +1,7 @@
 from torch.utils.data import Dataset
 from mitmpose.model.pose.grids.grids import Grid
-from mitmpose.model.pose.datasets.augment import AugmentedDataset, AAETransform
-from mitmpose.model.pose.datasets.dataset import OnlineRenderDataset
+from mitmpose.model.pose.datasets.augment import AAETransform
+from mitmpose.model.pose.datasets.dataset import OnlineRenderDataset, RenderedDataset, AugmentedAndRenderedDataset
 from mitmpose.model.pose.aae.aae import AEDataModule, AAE
 from torchvision import transforms
 import pytorch_lightning as pl
@@ -25,7 +25,7 @@ class ManyObjectsRenderedDataset(Dataset):
     ])
 
     def __init__(self, grider: Grid, models: dict, aae_render_tranform, classification_transform=None, res=128, camera_dist=None,
-                 render_res=640, intensity_render=10, intensity_augment=(2, 20), n_aug_workers=4, online=False):
+                 render_res=640, intensity_render=10, intensity_augment=(2, 20), online=False):
         self.grider = grider
         self.models = models
         self._datasets = None
@@ -33,22 +33,19 @@ class ManyObjectsRenderedDataset(Dataset):
             'camera_dist': camera_dist,
             'render_res': render_res,
             'res': res,
-            'intensity_render': intensity_render,
+            'intensity_reconstruction': intensity_render,
             'intensity_augment': intensity_augment,
-            'n_workers': n_aug_workers
+            'augmenter': aae_render_tranform
         }
         self.labels = {}
         self.transform = classification_transform or self.default_transform
         self.aae_render_transform = aae_render_tranform
         self.mode = 'class'
-        self.class_ds = AugmentedDataset
+        self.class_ds = AugmentedAndRenderedDataset
 
         self.online = online
         if self.online:
-            self.class_ds = OnlineRenderDataset
-            self.default_params['directional_light_intensity'] = intensity_augment
-            self.default_params.pop('intensity_augment')
-            self.default_params.pop('intensity_render')
+            self.default_params['aug_class'] = OnlineRenderDataset
 
 
     @property
@@ -59,7 +56,6 @@ class ManyObjectsRenderedDataset(Dataset):
             for model_name, params in self.models.items():
                 mparams = self.default_params.copy()
                 mparams.update(params)
-                mparams['transform'] = self.aae_render_transform
                 self.datasets[model_name] = self.class_ds(self.grider, **mparams)
                 self.labels[model_name] = label
                 label += 1
@@ -107,7 +103,7 @@ if __name__ == '__main__':
     ds = ManyObjectsRenderedDataset(grider, models,
                                     aae_render_tranform=AAETransform(0.5, '/home/safoex/Documents/data/VOCtrainval_11-May-2012', add_aug=False))
     ds.set_mode('aae')
-    ds.load_dataset(workdir)
+    ds.create_dataset(workdir)
 
     trainer = pl.Trainer(gpus=1, max_epochs=100)
 
