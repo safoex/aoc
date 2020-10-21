@@ -35,7 +35,7 @@ class ManyAmbigousObjectsLabeledRenderedDataset(ManyObjectsRenderedDataset):
 
     def keep_fraction(self, fraction=1):
         sorted, _ = torch.max(self.labeler._sorted, dim=2)
-        self._idcs = torch.nonzero(sorted >= (1 - fraction))
+        self._idcs = torch.nonzero(sorted <= fraction)
         self._len = len(self._idcs)
 
     def recalculate_fin_labels(self):
