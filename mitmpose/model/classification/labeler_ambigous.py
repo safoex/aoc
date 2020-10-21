@@ -12,7 +12,7 @@ import shutil
 
 
 class AmbigousObjectsLabeler:
-    def __init__(self, models, grider_label, grider_codebook, ae, knn_median=5):
+    def __init__(self, models, grider_label, grider_codebook, ae, knn_median=5, borderline=0.25, width=0.1):
         self.models = models
         self.grider = grider_label
         self.grider_cdbk = grider_codebook
@@ -32,8 +32,8 @@ class AmbigousObjectsLabeler:
 
         self._sorted = None
         self._fin_labels = None
-        self.borderline = 0.25
-        self.width = 0.1
+        self.borderline = borderline
+        self.width = width
 
 
     @property
@@ -146,6 +146,7 @@ class AmbigousObjectsLabeler:
         torch.save(self.similarities, workdir + '/' + 'similarities.pt')
         torch.save(self._eulers, workdir + '/' + 'eulers.pt')
         torch.save(self._searched, workdir + '/' + 'searched.pt')
+        # torch.save(self._sorted, workdir + '/' + 'sorted.pt')
         torch.save(self.fin_labels, workdir + '/' + 'fin_labels.pt')
 
     def load(self, workdir):
@@ -154,14 +155,15 @@ class AmbigousObjectsLabeler:
         self._simililarities = torch.load(workdir + '/' + 'similarities.pt')
         self._eulers = torch.load(workdir + '/' + 'eulers.pt')
         self._searched = torch.load(workdir + '/' + 'searched.pt').cpu()
+        # self._sorted = torch.load(workdir + '/' + 'sorted.pt')
         self._fin_labels = torch.load(workdir + '/' + 'fin_labels.pt')
 
     @property
     def smooth_labels(self):
         if self._smoothen is None:
             self._smoothen = torch.zeros_like(self._searched)
-            for i in range(len(models)):
-                for j in range(len(models)):
+            for i in range(len(self.models)):
+                for j in range(len(self.models)):
                     if i != j:
                         for k in range(self._smoothen.shape[0]):
                             self._smoothen[k, i, j] = torch.median(self._searched[self.knn_index_grid[k], i, j])
@@ -182,19 +184,21 @@ class AmbigousObjectsLabeler:
 
         return self._knn_index_grid
 
+    def recalculate_fin_labels(self):
+        self._sorted = torch.zeros_like(self.smooth_labels)
+        self._fin_labels = torch.ones_like(self.labels)
+        for i in range(len(self.models)):
+            for j in range(len(self.models)):
+                if i != j:
+                    arg_sorted = torch.argsort(self.smooth_labels[:, i, j])
+                    self._sorted[arg_sorted, i, j] = torch.linspace(0, 1, len(self._sorted[:, i, j]))
+                    self._fin_labels[:, i, j] = self.to_curve(self._sorted[:, i, j], self.borderline, self.width)
+        self._fin_labels /= torch.sum(self._fin_labels, dim=2, keepdim=True)
+
     @property
     def fin_labels(self):
         if self._fin_labels is None:
-            self._sorted = torch.zeros_like(self.smooth_labels)
-            self._fin_labels = torch.ones_like(self.labels)
-            for i in range(len(models)):
-                for j in range(len(models)):
-                    if i != j:
-                        arg_sorted = torch.argsort(self.smooth_labels[:, i, j])
-                        self._sorted[arg_sorted, i, j] = torch.linspace(0, 1, len(self._sorted[:, i, j]))
-                        self._fin_labels[:, i, j] = self.to_curve(self._sorted[:, i, j], self.borderline, self.width)
-            self._fin_labels /= torch.sum(self._fin_labels, dim=2, keepdim=True)
-
+            self.recalculate_fin_labels()
         return self._fin_labels
 
     @staticmethod

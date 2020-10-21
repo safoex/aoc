@@ -89,6 +89,7 @@ class ManyObjectsRenderedDataset(Dataset):
             ds_idx = -1
             if self.online:
                 ds_idx = 0
+
             return self.transform(self.datasets[obj][idx][ds_idx]), self.labels[obj]
         else:
             return self.datasets[obj][idx]

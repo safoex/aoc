@@ -2,11 +2,13 @@ from mitmpose.model.classification.dataset import ManyObjectsRenderedDataset, Gr
 from mitmpose.model.classification.labeler_ambigous import AmbigousObjectsLabeler
 import torch
 import numpy as np
+import itertools
 
 
 class ManyAmbigousObjectsLabeledRenderedDataset(ManyObjectsRenderedDataset):
     def __init__(self, grider: Grid, grider_codebook: Grid, models: dict, joint_ae, aae_render_tranform, classification_transform=None, res=128, camera_dist=None,
-                 render_res=640, intensity_render=10, intensity_augment=(2, 20), online=False, keep_top_threshold=0):
+                 render_res=640, intensity_render=10, intensity_augment=(2, 20), online=False, keep_top_threshold=None,
+                 keep_fraction=1):
         super().__init__(grider, models, aae_render_tranform, classification_transform, res, camera_dist,
                          render_res, intensity_render, intensity_augment, online)
         grider_labeler = grider
@@ -18,6 +20,7 @@ class ManyAmbigousObjectsLabeledRenderedDataset(ManyObjectsRenderedDataset):
         self._len = None
         self._idcs = None
         self.top_threshold = keep_top_threshold
+        self.fraction = keep_fraction
 
     def __len__(self):
         if self._len is not None:
@@ -30,34 +33,49 @@ class ManyAmbigousObjectsLabeledRenderedDataset(ManyObjectsRenderedDataset):
         self._idcs = torch.nonzero(top_labels >= threshold)
         self._len = len(self._idcs)
 
+    def keep_fraction(self, fraction=1):
+        sorted, _ = torch.max(self.labeler._sorted, dim=2)
+        self._idcs = torch.nonzero(sorted <= fraction)
+        self._len = len(self._idcs)
+
+    def recalculate_fin_labels(self):
+        self._labels = self.labeler.fin_labels
+        if self.grider.samples_in_plane > 1:
+            # self._labels = self._labels.repeat(self.grider.samples_in_plane, 1, 1)
+            self._labels = torch.repeat_interleave(self._labels, repeats=self.grider.samples_in_plane, dim=0)
+
+        if self.top_threshold is not None and self.top_threshold > 0:
+            self.keep_top(self.top_threshold)
+
+        if self.top_threshold is None:
+            if self.fraction < 1:
+                self.keep_fraction(self.fraction)
+            n = len(self.labeler.model_list)
+
+            for i, j in itertools.product(range(n), range(n)):
+                self._labels[:, i, j] = float(i == j)
+
     @property
     def fin_labels(self):
         if self._labels is None:
-            self._labels = self.labeler.fin_labels
-            if self.grider.samples_in_plane > 1:
-                # self._labels = self._labels.repeat(self.grider.samples_in_plane, 1, 1)
-                self._labels = torch.repeat_interleave(self._labels, repeats=self.grider.samples_in_plane, dim=0)
-            if self.top_threshold > 0:
-                self.keep_top(self.top_threshold)
+            self.recalculate_fin_labels()
+
         return self._labels
 
     def create_dataset(self, folder):
         super(ManyAmbigousObjectsLabeledRenderedDataset, self).create_dataset(folder)
         self.labeler.save(folder)
-        if self.top_threshold > 0:
-            self.keep_top(self.top_threshold)
+        self.recalculate_fin_labels()
 
     def load_dataset(self, folder):
         super(ManyAmbigousObjectsLabeledRenderedDataset, self).load_dataset(folder)
         self.labeler.load(folder)
-        if self.top_threshold > 0:
-            self.keep_top(self.top_threshold)
+        self.recalculate_fin_labels()
 
     def __getitem__(self, idx):
-
         obj = None
         obj_id = 0
-        if self.mode == 'class' and self.top_threshold > 0:
+        if self.mode == 'class' and (self.top_threshold is not None and self.top_threshold > 0 or self.fraction < 1):
             idx, obj_id = self._idcs[idx]
             obj = self.labeler.model_list[obj_id]
         else:
@@ -100,8 +118,9 @@ if __name__ == '__main__':
 
     aae_transform = AAETransform(0.5, '/home/safoex/Documents/data/VOCtrainval_11-May-2012', add_aug=False)
     ds = ManyAmbigousObjectsLabeledRenderedDataset(grider, grider_codebook, models, ae,
-                                                   aae_render_tranform=aae_transform, keep_top_threshold=1)
+                                                   aae_render_tranform=aae_transform, keep_fraction=0.2)
     ds.labeler.load(workdir)
+    ds.labeler.recalculate_fin_labels()
     ds.load_dataset(workdir)
 
     for idx in np.random.randint(0, len(ds), 10):
