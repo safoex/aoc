@@ -282,13 +282,13 @@ if __name__ == "__main__":
     # euler = np.array([ 1.73685346,  0.39140481, -0.6275145 ])
     # euler = np.array([-0.52187396, -0.3788934,   2.31570534])
 
-    i_from = 1
-    i_to = 0
-    top_n = 300
-    wdir_save = workdir + '/' + 'tops_pi_fr_smooth'
-    labeler.knn_median = 10
+    for i_from, i_to in itertools.product(range(3), range(3)):
+        if i_from != i_to:
+            top_n = 300
+            wdir_save = workdir + '/' + 'tops_%d_%d' % (i_from, i_to)
+            labeler.knn_median = 10
 
-    # print_out_sim_views(labeler, i_from, i_to, top_n, wdir_save)
+            print_out_sim_views(labeler, i_from, i_to, top_n, wdir_save)
 
     # print(Rotation.from_matrix(rot_min).as_euler('xyz'))
     # color, depth = online_ds.objren.render(labeler.grider.grid[i_min])
@@ -299,18 +299,18 @@ if __name__ == "__main__":
     #
     # ae_ideal.load_state_dict(torch.load('/home/safoex/Documents/data/aae/cans_pth2/pollo/ae128.pth'))
     #
-    m_i = labeler.model_idx[test_on]
-    for i, x in enumerate(np.random.randint(0, len(grider.grid), 10)):
-        rot = grider.grid[x]
-        wdir = workdir + '/' + 'test_%d' % i
-
-        if os.path.exists(wdir):
-            shutil.rmtree(wdir, ignore_errors=True)
-
-        os.mkdir(wdir)
-
-        label = str(labeler.fin_labels[x, m_i, :])
-        render_and_save(online_ds, rot, wdir + '/' + 'rendered_p_%s.png' % label, wdir + '/' + 'rec.png', ae)
+    # m_i = labeler.model_idx[test_on]
+    # for i, x in enumerate(np.random.randint(0, len(grider.grid), 10)):
+    #     rot = grider.grid[x]
+    #     wdir = workdir + '/' + 'test_%d' % i
+    #
+    #     if os.path.exists(wdir):
+    #         shutil.rmtree(wdir, ignore_errors=True)
+    #
+    #     os.mkdir(wdir)
+    #
+    #     label = str(labeler.fin_labels[x, m_i, :])
+    #     render_and_save(online_ds, rot, wdir + '/' + 'rendered_p_%s.png' % label, wdir + '/' + 'rec.png', ae)
         # render_and_save(online_ds, rot, None, wdir + '/' + 'rec_ideal.png', ae_ideal)
 
 

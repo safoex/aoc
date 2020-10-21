@@ -3,6 +3,7 @@ from mitmpose.model.classification.labeler_ambigous import AmbigousObjectsLabele
 import torch
 import numpy as np
 import itertools
+from torchvision import transforms
 
 
 class ManyAmbigousObjectsLabeledRenderedDataset(ManyObjectsRenderedDataset):
@@ -35,7 +36,14 @@ class ManyAmbigousObjectsLabeledRenderedDataset(ManyObjectsRenderedDataset):
 
     def keep_fraction(self, fraction=1):
         sorted, _ = torch.max(self.labeler._sorted, dim=2)
-        self._idcs = torch.nonzero(sorted <= fraction)
+        indices = torch.nonzero(sorted <= fraction)
+
+        self._idcs = torch.repeat_interleave(indices, self.grider.samples_in_plane, dim=0)
+        self._idcs[:, 0] *= self.grider.samples_in_plane
+        for x in range(self.grider.samples_in_plane):
+            for z in range(indices.shape[0]):
+                self._idcs[x+z*self.grider.samples_in_plane, 0] += x
+
         self._len = len(self._idcs)
 
     def recalculate_fin_labels(self):
@@ -91,7 +99,7 @@ class ManyAmbigousObjectsLabeledRenderedDataset(ManyObjectsRenderedDataset):
             ds_idx = -1
             if self.online:
                 ds_idx = 0
-            return self.transform(self.datasets[obj][idx][ds_idx]), self.fin_labels[idx, obj_id, :]
+            return self.transform(self.datasets[obj][idx][0]), self.fin_labels[idx, obj_id, :]
         else:
             return self.datasets[obj][idx]
 
@@ -116,15 +124,25 @@ if __name__ == '__main__':
 
     ae.cuda()
 
-    aae_transform = AAETransform(0.5, '/home/safoex/Documents/data/VOCtrainval_11-May-2012', add_aug=False)
+    aae_transform = AAETransform(0.5, '/home/safoex/Documents/data/VOCtrainval_11-May-2012', add_aug=False, add_patches=False)
     ds = ManyAmbigousObjectsLabeledRenderedDataset(grider, grider_codebook, models, ae,
-                                                   aae_render_tranform=aae_transform, keep_fraction=0.2)
+                                                   aae_render_tranform=aae_transform, keep_fraction=0.7)
     ds.labeler.load(workdir)
     ds.labeler.recalculate_fin_labels()
     ds.load_dataset(workdir)
 
-    for idx in np.random.randint(0, len(ds), 10):
-        print(ds[idx][1])
+    for i, idx in enumerate(np.random.randint(0, len(ds), 10)):
+        img = ds[idx][0].cpu()
+        # img = np.moveaxis(img, 0, 2) * 255.0
+        img = transforms.ToPILImage()(img).convert("RGB")
+        img.save(workdir + '/test%d.png' % i)
+
+    from mitmpose.model.classification.labeler_ambigous import render_and_save
+
+    for i, idx in enumerate(np.random.randint(0, ds._idcs.shape[0], 20)):
+        ii = ds._idcs[idx][0]
+        obj = ds.labeler.model_list[0]
+        render_and_save(ds.datasets[obj].reconstruction_dataset, rot=ds.grider.grid[ii], path=workdir + '/TEST%d.png'%i)
 
 
 
