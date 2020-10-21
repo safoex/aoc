@@ -9,7 +9,7 @@ from torchvision import transforms
 class ManyAmbigousObjectsLabeledRenderedDataset(ManyObjectsRenderedDataset):
     def __init__(self, grider: Grid, grider_codebook: Grid, models: dict, joint_ae, aae_render_tranform, classification_transform=None, res=128, camera_dist=None,
                  render_res=640, intensity_render=10, intensity_augment=(2, 20), online=False, keep_top_threshold=None,
-                 keep_fraction=1):
+                 keep_fraction=1, keep_fraction_val_delta=None):
         super().__init__(grider, models, aae_render_tranform, classification_transform, res, camera_dist,
                          render_res, intensity_render, intensity_augment, online)
         grider_labeler = grider
@@ -36,7 +36,10 @@ class ManyAmbigousObjectsLabeledRenderedDataset(ManyObjectsRenderedDataset):
 
     def keep_fraction(self, fraction=1):
         sorted, _ = torch.max(self.labeler._sorted, dim=2)
-        indices = torch.nonzero(sorted <= fraction)
+        if isinstance(fraction, tuple):
+            indices = torch.nonzero(torch.logical_and(sorted >= fraction[0], sorted <= fraction[1]))
+        else:
+            indices = torch.nonzero(sorted <= fraction)
 
         self._idcs = torch.repeat_interleave(indices, self.grider.samples_in_plane, dim=0)
         self._idcs[:, 0] *= self.grider.samples_in_plane
@@ -99,7 +102,7 @@ class ManyAmbigousObjectsLabeledRenderedDataset(ManyObjectsRenderedDataset):
             ds_idx = -1
             if self.online:
                 ds_idx = 0
-            return self.transform(self.datasets[obj][idx][0]), self.fin_labels[idx, obj_id, :]
+            return self.transform(self.datasets[obj][idx][ds_idx]), self.fin_labels[idx, obj_id, :]
         else:
             return self.datasets[obj][idx]
 
@@ -123,13 +126,22 @@ if __name__ == '__main__':
     ae.load_state_dict(torch.load(ae_path))
 
     ae.cuda()
-
+    cltrans = transforms.Compose([
+        transforms.ToPILImage(),
+        transforms.Resize(236),
+        transforms.RandomCrop(224),
+        transforms.ColorJitter(0.2, 0.2, 0.2, 0.2),
+        transforms.ToTensor(),
+        # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    ])
     aae_transform = AAETransform(0.5, '/home/safoex/Documents/data/VOCtrainval_11-May-2012', add_aug=False, add_patches=False)
     ds = ManyAmbigousObjectsLabeledRenderedDataset(grider, grider_codebook, models, ae,
-                                                   aae_render_tranform=aae_transform, keep_fraction=0.7)
+                                                   aae_render_tranform=aae_transform,
+                                                   classification_transform=cltrans,
+                                                   keep_fraction=0.7)
     ds.labeler.load(workdir)
     ds.labeler.recalculate_fin_labels()
-    ds.load_dataset(workdir)
+    ds.create_dataset(workdir)
 
     for i, idx in enumerate(np.random.randint(0, len(ds), 10)):
         img = ds[idx][0].cpu()
@@ -139,10 +151,10 @@ if __name__ == '__main__':
 
     from mitmpose.model.classification.labeler_ambigous import render_and_save
 
-    for i, idx in enumerate(np.random.randint(0, ds._idcs.shape[0], 20)):
-        ii = ds._idcs[idx][0]
-        obj = ds.labeler.model_list[0]
-        render_and_save(ds.datasets[obj].reconstruction_dataset, rot=ds.grider.grid[ii], path=workdir + '/TEST%d.png'%i)
+    # for i, idx in enumerate(np.random.randint(0, ds._idcs.shape[0], 20)):
+    #     ii = ds._idcs[idx][0]
+    #     obj = ds.labeler.model_list[0]
+    #     render_and_save(ds.datasets[obj].reconstruction_dataset, rot=ds.grider.grid[ii], path=workdir + '/TEST%d.png'%i)
 
 
 
