@@ -90,7 +90,7 @@ class ManyAmbigousObjectsLabeledRenderedDataset(ManyObjectsRenderedDataset):
     def __getitem__(self, idx):
         obj = None
         obj_id = 0
-        if self.mode == 'class' and (self.top_threshold is not None and self.top_threshold > 0 or self.fraction < 1):
+        if self.mode == 'class' and (self.top_threshold is not None and self.top_threshold > 0 or isinstance(self.fraction, tuple) or self.fraction < 1):
             idx, obj_id = self._idcs[idx]
             obj = self.labeler.model_list[obj_id]
         else:
