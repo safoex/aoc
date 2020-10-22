@@ -63,7 +63,7 @@ class ManyAmbigousObjectsLabeledRenderedDataset(ManyObjectsRenderedDataset):
             self.keep_top(self.top_threshold)
 
         if self.top_threshold is None:
-            if self.fraction < 1:
+            if isinstance(self.fraction, tuple) or self.fraction < 1:
                 self.keep_fraction(self.fraction)
             n = len(self.labeler.model_list)
 
