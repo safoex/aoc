@@ -12,14 +12,14 @@ import pytorch_lightning as pl
 
 
 class ObjectClassifier(pl.LightningModule):
-    def __init__(self, num_target_classes, loss=nn.CrossEntropyLoss()):
+    def __init__(self, num_target_classes, with_labels=False):
         super().__init__()
         # init a pretrained resnet
-        self.classifier = torchvision.models.resnet50(pretrained=True)
+        self.classifier = torchvision.models.resnet18(pretrained=True)
 
         # freeze weights of feature extractor
-        for param in self.classifier.parameters():
-            param.requires_grad = False
+        # for param in self.classifier.parameters():
+        #     param.requires_grad = False
 
         # set a number of target_classes
         num_filters = self.classifier.fc.in_features
@@ -28,7 +28,11 @@ class ObjectClassifier(pl.LightningModule):
         # set input_size
         self.input_size = 224
 
-        self.loss = loss
+        self.with_labels = with_labels
+        if self.with_labels:
+            self.loss = nn.BCEWithLogitsLoss()
+        else:
+            self.loss = nn.CrossEntropyLoss()
 
     def forward(self, x):
         return self.classifier(x)
@@ -53,16 +57,23 @@ class ObjectClassifier(pl.LightningModule):
         x, l = batch
         y_hat = self.forward(x)
         val_loss = self.loss(y_hat, l)
+        if self.with_labels:
+            corrects = torch.sum(torch.argmax(y_hat, dim=1) == torch.argmax(l, dim=1)).float()
+        else:
+            corrects = torch.sum(torch.argmax(y_hat, dim=1) == l).float()
+        corrects /= y_hat.shape[0]
         tensorboard = self.logger.experiment
         preds_n = min(len(x), 3)
         imgs = torch.cat([x[i] for i in range(preds_n)], 2)
         tensorboard.add_image('images', imgs.cpu(),
                               self.current_epoch, dataformats="CHW")
-        return {'val_loss': val_loss}
+        logs = {'val_loss': val_loss, 'corrects': corrects}
+        return {'val_loss': val_loss, 'corrects': corrects, 'log': logs}
 
     def validation_end(self, outputs):
         avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
-        tensorboard_logs = {'val_loss': avg_loss}
+        avg_corr = torch.stack([x['corrects'] for x in outputs]).mean()
+        tensorboard_logs = {'val_loss': avg_loss, 'corrects': avg_corr}
         return {'avg_val_loss': avg_loss, 'log': tensorboard_logs}
 
 

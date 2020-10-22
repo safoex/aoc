@@ -9,7 +9,7 @@ from torchvision import transforms
 class ManyAmbigousObjectsLabeledRenderedDataset(ManyObjectsRenderedDataset):
     def __init__(self, grider: Grid, grider_codebook: Grid, models: dict, joint_ae, aae_render_tranform, classification_transform=None, res=128, camera_dist=None,
                  render_res=640, intensity_render=10, intensity_augment=(2, 20), online=False, keep_top_threshold=None,
-                 keep_fraction=1, keep_fraction_val_delta=None):
+                 keep_fraction=1):
         super().__init__(grider, models, aae_render_tranform, classification_transform, res, camera_dist,
                          render_res, intensity_render, intensity_augment, online)
         grider_labeler = grider
@@ -34,10 +34,14 @@ class ManyAmbigousObjectsLabeledRenderedDataset(ManyObjectsRenderedDataset):
         self._idcs = torch.nonzero(top_labels >= threshold)
         self._len = len(self._idcs)
 
+    def get_top_ndim(self, a, top_n):
+        _, i = torch.topk(a.flatten(), top_n)
+        return (np.array(np.unravel_index(i.numpy(), a.shape)).T)
+
     def keep_fraction(self, fraction=1):
         sorted, _ = torch.max(self.labeler._sorted, dim=2)
         if isinstance(fraction, tuple):
-            indices = torch.nonzero(torch.logical_and(sorted >= fraction[0], sorted <= fraction[1]))
+            indices = torch.nonzero(torch.logical_and(sorted >= fraction[0] , sorted <= fraction[1]))
         else:
             indices = torch.nonzero(sorted <= fraction)
 
