@@ -70,7 +70,26 @@ class ObjectClassifier(pl.LightningModule):
         logs = {'val_loss': val_loss, 'corrects': corrects}
         return {'val_loss': val_loss, 'corrects': corrects, 'log': logs}
 
-    def validation_end(self, outputs):
+    def test_step(self, batch, batch_nb, ds_idx=None):
+        x, l = batch
+        y_hat = self.forward(x)
+        val_loss = self.loss(y_hat, l)
+        if self.with_labels:
+            corrects = torch.sum(torch.argmax(y_hat, dim=1) == torch.argmax(l, dim=1)).float()
+        else:
+            corrects = torch.sum(torch.argmax(y_hat, dim=1) == l).float()
+        corrects /= y_hat.shape[0]
+        logs = {'val_loss': val_loss, 'corrects': corrects}
+        return {'val_loss': val_loss, 'corrects': corrects, 'log': logs}
+
+    def test_end(self, outputs):
+        avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
+        avg_corr = torch.stack([x['corrects'] for x in outputs]).mean()
+        tensorboard_logs = {'val_loss': avg_loss, 'corrects': avg_corr}
+        return {'avg_val_loss': avg_loss, 'log': tensorboard_logs}
+
+
+def validation_end(self, outputs):
         avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
         avg_corr = torch.stack([x['corrects'] for x in outputs]).mean()
         tensorboard_logs = {'val_loss': avg_loss, 'corrects': avg_corr}

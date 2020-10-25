@@ -90,13 +90,13 @@ class AmbigousObjectsLabeler:
     def similarities(self):
         if self._simililarities is None:
             self.ae.eval()
-            self._simililarities = torch.zeros((len(self.grider.grid), len(models), len(models)), device=self.ae.device)
+            self._simililarities = torch.zeros((len(self.grider.grid), len(self.models), len(self.models)), device=self.ae.device)
             self._arg_simililarities = torch.zeros_like(self._simililarities)
             self._searched = torch.zeros_like(self._simililarities)
-            self._eulers = torch.zeros((len(self.grider.grid), len(models), len(models), 3))
+            self._eulers = torch.zeros((len(self.grider.grid), len(self.models), len(self.models), 3))
 
-            for i in range(len(models)):
-                for j in range(len(models)):
+            for i in range(len(self.models)):
+                for j in range(len(self.models)):
                     m_i = self.model_list[i]
                     m_j = self.model_list[j]
                     cdbk_i = self.codebooks[m_i]

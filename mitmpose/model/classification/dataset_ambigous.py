@@ -6,6 +6,7 @@ import itertools
 from torchvision import transforms
 
 
+
 class ManyAmbigousObjectsLabeledRenderedDataset(ManyObjectsRenderedDataset):
     def __init__(self, grider: Grid, grider_codebook: Grid, models: dict, joint_ae, aae_render_tranform, classification_transform=None, res=128, camera_dist=None,
                  render_res=640, intensity_render=10, intensity_augment=(2, 20), online=False, keep_top_threshold=None,
@@ -17,6 +18,7 @@ class ManyAmbigousObjectsLabeledRenderedDataset(ManyObjectsRenderedDataset):
                 grider_labeler = Grid(grider.samples_sphere, 1)
         self.labeler = AmbigousObjectsLabeler(models, grider_labeler, grider_codebook, joint_ae)
         self._labels = None
+        self._sorted = None
 
         self._len = None
         self._idcs = None
@@ -38,12 +40,21 @@ class ManyAmbigousObjectsLabeledRenderedDataset(ManyObjectsRenderedDataset):
         _, i = torch.topk(a.flatten(), top_n)
         return (np.array(np.unravel_index(i.numpy(), a.shape)).T)
 
+    @property
+    def sorted(self):
+        if self._sorted is None:
+            self._sorted, _ = torch.max(self.labeler._sorted, dim=2)
+            for i in range(self._sorted.shape[1]):
+                arg_sorted = torch.argsort(self._sorted[:, i])
+                self._sorted[arg_sorted, i] = torch.linspace(0, 1, self._sorted.shape[0])
+
+        return self._sorted
+
     def keep_fraction(self, fraction=1):
-        sorted, _ = torch.max(self.labeler._sorted, dim=2)
         if isinstance(fraction, tuple):
-            indices = torch.nonzero(torch.logical_and(sorted >= fraction[0] , sorted <= fraction[1]))
+            indices = torch.nonzero(torch.logical_and(self.sorted >= fraction[0], self.sorted <= fraction[1]))
         else:
-            indices = torch.nonzero(sorted <= fraction)
+            indices = torch.nonzero(self.sorted <= fraction)
 
         self._idcs = torch.repeat_interleave(indices, self.grider.samples_in_plane, dim=0)
         self._idcs[:, 0] *= self.grider.samples_in_plane
