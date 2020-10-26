@@ -10,7 +10,7 @@ from mitmpose.model.pose.datasets.augment import print_batch
 
 from torch.utils.data import DataLoader
 
-from logutil import TimeSeries
+# from logutil import TimeSeries
 import pytorch_lightning as pl
 
 
@@ -61,7 +61,7 @@ class AE(pl.LightningModule):
 
 
 def train_ae(ae, dataset, iters=5000, batch_size=32, save_every=0, save_path=None, print_every_seconds=10):
-    ts = TimeSeries('Training ae', iters)
+    # ts = TimeSeries('Training ae', iters)
     opt_ae = optim.Adam(ae.parameters(), lr=2e-4)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=1)
 
@@ -84,14 +84,14 @@ def train_ae(ae, dataset, iters=5000, batch_size=32, save_every=0, save_path=Non
                 loss_aae = torch.mean(torch.topk(mse, mse.numel() // bootstrap_ratio)[0])
             else:
                 loss_aae = F.mse_loss(x, x_hat)
-            ts.collect("Reconstruction AE loss", loss_aae)
+            # ts.collect("Reconstruction AE loss", loss_aae)
 
             opt_ae.zero_grad()
             loss_aae.backward()
 
             opt_ae.step()
             ae.eval()
-            ts.print_every(print_every_seconds)
+            # ts.print_every(print_every_seconds)
             if save_every != 0 and save_path is not None and i % save_every == 0:
                 print_batch(x, x_hat, save_path)
 
