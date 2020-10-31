@@ -12,7 +12,8 @@ import shutil
 
 
 class AmbigousObjectsLabeler:
-    def __init__(self, models, grider_label, grider_codebook, ae, knn_median=5, borderline=0.25, width=0.1):
+    def __init__(self, models, grider_label, grider_codebook, ae, knn_median=5, borderline=0.25, width=0.1,
+                 magic_grad_steps=5, magic_nn_points=6, magic_shrink_constant=0.4, magic_shrink_exp=1.5):
         self.models = models
         self.grider = grider_label
         self.grider_cdbk = grider_codebook
@@ -34,6 +35,11 @@ class AmbigousObjectsLabeler:
         self._fin_labels = None
         self.borderline = borderline
         self.width = width
+
+        self.magic_grad_steps = magic_grad_steps
+        self.magic_nn_points = magic_nn_points
+        self.magic_shrink_constant = magic_shrink_constant
+        self.magic_shrink_exp = magic_shrink_exp
 
 
     @property
@@ -72,9 +78,9 @@ class AmbigousObjectsLabeler:
             sv = starting_v
         target = code
         top_score = 0
-        for i in range(5):
-            dd = 0.4 / 1.5 ** i
-            lin = np.linspace(-dd, dd, 6)
+        for i in range(self.magic_grad_steps):
+            dd = self.magic_shrink_constant / self.magic_shrink_exp ** i
+            lin = np.linspace(-dd, dd, self.magic_nn_points)
             eulers = np.array([sv + np.array([dx, dy, dz]) for dx, dy, dz in itertools.product(lin, lin, lin)])
             rots = Rotation.from_euler('xyz', eulers).as_matrix()
             sims = cdbk.cos_sim(target, cdbk.latent_exact(rots))
@@ -250,16 +256,17 @@ def print_out_sim_views(labeler: AmbigousObjectsLabeler, i_from, i_to, top_n, wd
 if __name__ == "__main__":
     # models_dir = '/home/safoex/Downloads/cat_food/models_fixed/'
     # models_names = ['tonno_low', 'pollo', 'polpa']
-    models_dir = '/home/safoex/Documents/data/aae/models/scans'
+    wdir_root = '/home/safoex/Documents/data/aae'
+    models_dir = wdir_root + '/models/scans'
     models_names = ['fragola', 'pistacchi', 'tiramisu']
     models = {mname: {'model_path': models_dir + '/' + mname + '.obj'} for mname in models_names}
-    workdir = '/home/safoex/Documents/data/aae/test_labeler'
+    workdir = wdir_root + '/test_labeler'
     if not os.path.exists(workdir):
         os.mkdir(workdir)
     grider = Grid(300, 1)
 
     ae = AAE(128, 256, (128, 256, 256, 512))
-    ae_path = '/home/safoex/Documents/data/aae/multi_boxes256.pth'
+    ae_path = wdir_root + '/multi_boxes256.pth'
     ae.load_state_dict(torch.load(ae_path))
 
     ae.cuda()
