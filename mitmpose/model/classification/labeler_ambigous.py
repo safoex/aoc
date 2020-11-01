@@ -160,7 +160,7 @@ class AmbigousObjectsLabeler:
         self._labels = torch.load(workdir + '/' + 'labels.pt')
         self._simililarities = torch.load(workdir + '/' + 'similarities.pt')
         self._eulers = torch.load(workdir + '/' + 'eulers.pt')
-        self._searched = torch.load(workdir + '/' + 'searched.pt').cpu()
+        self._searched = torch.load(workdir + '/' + 'searched.pt')
         # self._sorted = torch.load(workdir + '/' + 'sorted.pt')
         self._fin_labels = torch.load(workdir + '/' + 'fin_labels.pt')
 
@@ -197,7 +197,7 @@ class AmbigousObjectsLabeler:
             for j in range(len(self.models)):
                 if i != j:
                     arg_sorted = torch.argsort(self.smooth_labels[:, i, j])
-                    self._sorted[arg_sorted, i, j] = torch.linspace(0, 1, len(self._sorted[:, i, j]))
+                    self._sorted[arg_sorted, i, j] = torch.linspace(0, 1, len(self._sorted[:, i, j]), device=self.ae.device)
                     self._fin_labels[:, i, j] = self.to_curve(self._sorted[:, i, j], self.borderline, self.width)
         self._fin_labels /= torch.sum(self._fin_labels, dim=2, keepdim=True)
 
