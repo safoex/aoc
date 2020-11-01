@@ -230,7 +230,7 @@ def render_and_save(ds, rot, path=None, rec_path=None, ae=None):
         img.save(path)
 
 
-def print_out_sim_views(labeler: AmbigousObjectsLabeler, i_from, i_to, top_n, wdir_save):
+def print_out_sim_views(labeler: AmbigousObjectsLabeler, models_names, i_from, i_to, top_n, wdir_save):
     cdbks = labeler.codebooks
 
     model_from = models_names[i_from]
@@ -295,7 +295,7 @@ if __name__ == "__main__":
             wdir_save = workdir + '/' + 'tops_%d_%d' % (i_from, i_to)
             labeler.knn_median = 10
 
-            print_out_sim_views(labeler, i_from, i_to, top_n, wdir_save)
+            print_out_sim_views(labeler, models_names, i_from, i_to, top_n, wdir_save)
 
     # print(Rotation.from_matrix(rot_min).as_euler('xyz'))
     # color, depth = online_ds.objren.render(labeler.grider.grid[i_min])
