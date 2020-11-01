@@ -230,7 +230,7 @@ def render_and_save(ds, rot, path=None, rec_path=None, ae=None):
         img.save(path)
 
 
-def print_out_sim_views(labeler: AmbigousObjectsLabeler, models_names, i_from, i_to, top_n, wdir_save):
+def print_out_sim_views(labeler: AmbigousObjectsLabeler, models_names, models, i_from, i_to, top_n, wdir_save):
     cdbks = labeler.codebooks
 
     model_from = models_names[i_from]
@@ -245,6 +245,9 @@ def print_out_sim_views(labeler: AmbigousObjectsLabeler, models_names, i_from, i
 
     if not os.path.exists(wdir_save):
         os.mkdir(wdir_save)
+
+    grider = Grid(100, 1)
+    ods = {mname: OnlineRenderDataset(grider, models[mname]['model_path'], camera_dist=None) for mname in models_names}
 
     for i, idx in enumerate(idcs):
         render_and_save(ods[model_from], rot=labeler.grider.grid[idx.item()], path=wdir_save + '/' + 'top%d.png' % i)
@@ -276,11 +279,11 @@ if __name__ == "__main__":
     labeler.load(workdir)
     # labeler.save(workdir)
 
-    test_on = 'pistacchi'
-    online_ds_fragola = OnlineRenderDataset(grider, models['fragola']['model_path'], camera_dist=None)
-    online_ds = OnlineRenderDataset(grider, models[test_on]['model_path'], camera_dist=None)
-
-    ods = {mname: OnlineRenderDataset(grider, models[mname]['model_path'], camera_dist=None) for mname in models_names}
+    # test_on = 'pistacchi'
+    # online_ds_fragola = OnlineRenderDataset(grider, models['fragola']['model_path'], camera_dist=None)
+    # online_ds = OnlineRenderDataset(grider, models[test_on]['model_path'], camera_dist=None)
+    #
+    # ods = {mname: OnlineRenderDataset(grider, models[mname]['model_path'], camera_dist=None) for mname in models_names}
 
     # euler = np.array([ 2.51397823, -1.1410451,  -0.72252894])
 
@@ -295,7 +298,7 @@ if __name__ == "__main__":
             wdir_save = workdir + '/' + 'tops_%d_%d' % (i_from, i_to)
             labeler.knn_median = 10
 
-            print_out_sim_views(labeler, models_names, i_from, i_to, top_n, wdir_save)
+            print_out_sim_views(labeler, models_names, models, i_from, i_to, top_n, wdir_save)
 
     # print(Rotation.from_matrix(rot_min).as_euler('xyz'))
     # color, depth = online_ds.objren.render(labeler.grider.grid[i_min])
