@@ -55,21 +55,22 @@ class AmbigousObjectsLabeler:
 
     def recalculate_extra_cl_sims(self):
         self._extra_cl_sims = torch.zeros_like(self.similarities)
-        codebooks = [
-            Codebook(self.extra_encoder, OnlineRenderDataset(
-                self.grider, self.models[mname]['model_path'], render_res=self.extra_render_res
-            ), latent_size=self.extra_latent_size)
-            for i, mname in enumerate(self.models)
-        ]
+        if self.extra_encoder is not None and self.extra_encoder_weight > 0:
+            codebooks = [
+                Codebook(self.extra_encoder, OnlineRenderDataset(
+                    self.grider, self.models[mname]['model_path'], render_res=self.extra_render_res
+                ), latent_size=self.extra_latent_size)
+                for i, mname in enumerate(self.models)
+            ]
 
-        for i in range(len(self.models)):
-            for j in range(len(self.models)):
-                if i != j:
-                    eulers_to = self._eulers[:, i, j, :].cpu()
-                    rots_to = Rotation.from_euler('xyz', eulers_to).as_matrix()
-                    lats_to = codebooks[j].latent_exact(rots_to)
-                    lats_from = codebooks[i].codebook
-                    self._extra_cl_sims[:, i, j] = codebooks[i].cos_sim(lats_from, lats_to)
+            for i in range(len(self.models)):
+                for j in range(len(self.models)):
+                    if i != j:
+                        eulers_to = self._eulers[:, i, j, :].cpu()
+                        rots_to = Rotation.from_euler('xyz', eulers_to).as_matrix()
+                        lats_to = codebooks[j].latent_exact(rots_to)
+                        lats_from = codebooks[i].codebook
+                        self._extra_cl_sims[:, i, j] = codebooks[i].cos_sim(lats_from, lats_to)
 
     @property
     def extra_cl_sims(self):
@@ -241,7 +242,9 @@ class AmbigousObjectsLabeler:
         for i in range(len(self.models)):
             for j in range(len(self.models)):
                 if i != j:
-                    sorting_metric = self.ae_weight * self.smooth_labels[:, i, j] + self.extra_encoder_weight * self.extra_cl_sims[:, i, j]
+                    sorting_metric = self.ae_weight * self.smooth_labels[:, i, j]
+                    if self.extra_encoder_weight != 0:
+                        sorting_metric += self.extra_encoder_weight * self.extra_cl_sims[:, i, j]
                     arg_sorted = torch.argsort(sorting_metric)
                     self._sorted[arg_sorted, i, j] = torch.linspace(0, 1, len(self._sorted[:, i, j]), device=self.ae.device)
                     self._fin_labels[:, i, j] = self.to_curve(self._sorted[:, i, j], self.borderline, self.width)
