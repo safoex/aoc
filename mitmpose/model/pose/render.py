@@ -11,7 +11,7 @@ import scipy
 
 
 class ObjectRenderer:
-    def __init__(self, path, camera_dist=0.5, res_side=640, intensity=(3,20)):
+    def __init__(self, path, camera_dist=0.5, res_side=640, intensity=(3,20), target_res=128):
         tmesh = trimesh.load(path)
         self.mesh_size = scipy.linalg.norm(np.array(tmesh.bounding_box_oriented.extents))
         self.camera_dist_coefficient = 1.5
@@ -39,6 +39,7 @@ class ObjectRenderer:
         dl = pyrender.DirectionalLight(color=[1.0, 1.0, 1.0], intensity=intensity_first)
         self.light = self.scene.add(dl)
         self.res_side = res_side
+        self.target_res = target_res
         self.renderer = pyrender.OffscreenRenderer(self.res_side, self.res_side)
 
         self.directional_intensity = intensity
@@ -115,7 +116,8 @@ class ObjectRenderer:
 
         return rmin, rmax, cmin, cmax
 
-    def render_and_crop(self, rot, target_res=128):
+    def render_and_crop(self, rot, target_res=None):
+        target_res = target_res or self.target_res
         color, depth = self.render(rot)
         bbox = self.bbox(depth)
         row_center = int(np.mean(bbox[:2]))
@@ -139,7 +141,7 @@ class ObjectRenderer:
         final_box = (top, left, bottom, right)
 
         return np.array(Image.fromarray(color).crop(final_box).resize((target_res, target_res)), dtype=np.float32), \
-               np.array(Image.fromarray((depth > 0).astype(np.uint8)).crop(final_box).resize((128, 128)), dtype=np.float32)
+               np.array(Image.fromarray((depth > 0).astype(np.uint8)).crop(final_box).resize((target_res, target_res)), dtype=np.float32)
 
     def test_show(self, color, depth):
         import matplotlib.pyplot as plt

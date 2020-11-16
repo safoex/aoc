@@ -37,7 +37,7 @@ class OnlineRenderDataset(Dataset):
     def objren(self):
         if self._objren is None:
             self._objren = ObjectRenderer(self.model_path, res_side=self.render_res, camera_dist=self.camera_dist,
-                                          intensity=self.directional_light_intensity)
+                                          intensity=self.directional_light_intensity, target_res=self.res)
         return self._objren
 
     def create_dataset(self, workdir):
@@ -190,8 +190,29 @@ class AugmentedAndRenderedDataset(Dataset):
         return img_rec, mask, rot, img_aug
 
 
-if __name__ == '__main__':
+if __name__ == '__main__2':
     fuze_path = '/home/safoex/Documents/libs/pyrender/examples/models/fuze.obj'
     grider = Grid(10, 10)
     ds = RenderedDataset(grider, fuze_path, image_path='inputs_augmented.npy', masks_path=None, rots_path=None)
     ds.create_dataset('test_save2')
+
+if __name__ == "__main__":
+    import torch
+    from torchvision import transforms
+    from tqdm import trange
+
+
+    def render_and_save(ds, rot, path=None):
+        img, _ = ds.objren.render_and_crop(rot)
+        img = np.moveaxis(img, 2, 0) / 255.0
+        t_img = torch.tensor(img)
+        if path:
+            img = transforms.ToPILImage()(t_img).convert("RGB")
+            img.save(path)
+
+    clpath = "/home/safoex/Documents/data/aae/models/scans/cleaner.obj"
+    grider = Grid(300,1)
+    ods = OnlineRenderDataset(grider, clpath, res=128)
+
+    for i, rot in tqdm(enumerate(grider.grid)):
+        render_and_save(ods, rot, "/home/safoex/Documents/data/aae/test_cleaner/n%d.png" % i)
