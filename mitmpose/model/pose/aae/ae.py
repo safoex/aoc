@@ -22,6 +22,7 @@ class AE(pl.LightningModule):
         self.decoder = Decoder(image_size, latent_size, filters)
         self.lae = lae_inside
         self.lae_used = lae_inside is not None
+        self.lr = 2e-4
 
     def use_lae(self, use=True):
         self.lae_used = use
@@ -34,7 +35,7 @@ class AE(pl.LightningModule):
         return x_hat
 
     def configure_optimizers(self):
-        optim = torch.optim.Adam(self.parameters(), lr=2e-4)
+        optim = torch.optim.Adam(self.parameters(), lr=self.lr)
         return optim
 
     def loss_aae(self, x, x_hat, bootstrap_ratio=4):
