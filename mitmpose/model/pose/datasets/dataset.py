@@ -22,7 +22,7 @@ class IndexedDataset(Dataset):
 
 class OnlineRenderDataset(Dataset):
     def __init__(self, grider: Grid, model_path=None, augmenter=None, res=128, camera_dist=None, render_res=640,
-                 directional_light_intensity=5):
+                 directional_light_intensity=5, aae_scale_factor=1.2):
         self.size = grider.samples_in_plane * grider.samples_sphere
         self.res = res
         self.model_path = model_path
@@ -32,12 +32,13 @@ class OnlineRenderDataset(Dataset):
         self._objren = None
         self.directional_light_intensity = directional_light_intensity
         self.augmenter = augmenter
+        self.aae_scale_factor = aae_scale_factor
 
     @property
     def objren(self):
         if self._objren is None:
             self._objren = ObjectRenderer(self.model_path, res_side=self.render_res, camera_dist=self.camera_dist,
-                                          intensity=self.directional_light_intensity, target_res=self.res)
+                                          intensity=self.directional_light_intensity, target_res=self.res, aae_scale_factor=self.aae_scale_factor)
         return self._objren
 
     def create_dataset(self, workdir):
@@ -78,8 +79,8 @@ class OnlineRenderDataset(Dataset):
 
 class RenderedDataset(OnlineRenderDataset):
     def __init__(self, grider: Grid, model_path=None, augmenter=None, res=128, camera_dist=None, render_res=640,
-                 directional_light_intensity=5, image_path='inputs.npy', masks_path='masks.npy', rots_path='rots.npy'):
-        super().__init__(grider, model_path, augmenter, res, camera_dist, render_res, directional_light_intensity)
+                 directional_light_intensity=5, image_path='inputs.npy', masks_path='masks.npy', rots_path='rots.npy', aae_scale_factor=1.2):
+        super().__init__(grider, model_path, augmenter, res, camera_dist, render_res, directional_light_intensity, aae_scale_factor)
         self.inputs = None
         self.masks = None
         self.rots = None
@@ -150,7 +151,7 @@ class RenderedDataset(OnlineRenderDataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
 
-        img = self.inputs[idx] if self.inputs is not None  else None
+        img = self.inputs[idx] if self.inputs is not None else None
         mask = self.masks[idx] if self.masks is not None else None
         rot = self.rots[idx] if self.rots is not None else None
 
@@ -160,7 +161,7 @@ class RenderedDataset(OnlineRenderDataset):
 class AugmentedAndRenderedDataset(Dataset):
     def __init__(self, grider: Grid, model_path=None, augmenter=None, res=128, render_res=640, camera_dist=None,
                  intensity_reconstruction=10, intensity_augment=(2, 20),
-                 aug_class=RenderedDataset, rec_class=RenderedDataset):
+                 aug_class=RenderedDataset, rec_class=RenderedDataset, aae_scale_factor=1.2):
         self.aug_images_path = None
         self.rec_images_path = None
         if aug_class is RenderedDataset:
@@ -169,9 +170,9 @@ class AugmentedAndRenderedDataset(Dataset):
             self.rec_images_path = 'images.npy'
 
         self.augmented_dataset = aug_class(grider, model_path, augmenter, res, camera_dist, render_res,
-                                           intensity_augment, self.aug_images_path, None, None)
+                                           intensity_augment, self.aug_images_path, None, None, aae_scale_factor=aae_scale_factor)
         self.reconstruction_dataset = rec_class(grider, model_path, None, res, camera_dist, render_res,
-                                                intensity_reconstruction, self.rec_images_path)
+                                                intensity_reconstruction, self.rec_images_path, aae_scale_factor=aae_scale_factor)
 
     def create_dataset(self, workdir):
         self.reconstruction_dataset.create_dataset(workdir)
@@ -187,6 +188,7 @@ class AugmentedAndRenderedDataset(Dataset):
     def __getitem__(self, idx):
         img_aug, _, _ = self.augmented_dataset[idx]
         img_rec, mask, rot = self.reconstruction_dataset[idx]
+
         return img_rec, mask, rot, img_aug
 
 

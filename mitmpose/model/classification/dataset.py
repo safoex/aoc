@@ -18,14 +18,15 @@ class ManyObjectsRenderedDataset(Dataset):
 
     transform_normalize = transforms.Compose([
         transforms.ToPILImage(),
-        transforms.Resize(236),
+        transforms.Resize(256),
+        transforms.RandomAffine(20, (0.1, 0.1), (0.9, 1.1)),
         transforms.RandomCrop(224),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
 
     def __init__(self, grider: Grid, models: dict, aae_render_tranform, classification_transform=None, res=128, camera_dist=None,
-                 render_res=640, intensity_render=10, intensity_augment=(2, 20), online=False):
+                 render_res=640, intensity_render=10, intensity_augment=(2, 20), online=False, aae_scale_factor=1.2):
         self.grider = grider
         self.models = models
         self._datasets = None
@@ -35,7 +36,8 @@ class ManyObjectsRenderedDataset(Dataset):
             'res': res,
             'intensity_reconstruction': intensity_render,
             'intensity_augment': intensity_augment,
-            'augmenter': aae_render_tranform
+            'augmenter': aae_render_tranform,
+            'aae_scale_factor': aae_scale_factor
         }
         self.labels = {}
         self.transform = classification_transform or self.default_transform
@@ -56,7 +58,7 @@ class ManyObjectsRenderedDataset(Dataset):
             for model_name, params in self.models.items():
                 mparams = self.default_params.copy()
                 mparams.update(params)
-                self.datasets[model_name] = self.class_ds(self.grider, **mparams)
+                self._datasets[model_name] = self.class_ds(self.grider, **mparams)
                 self.labels[model_name] = label
                 label += 1
         return self._datasets
@@ -89,7 +91,6 @@ class ManyObjectsRenderedDataset(Dataset):
             ds_idx = -1
             if self.online:
                 ds_idx = 0
-
             return self.transform(self.datasets[obj][idx][ds_idx]), self.labels[obj]
         else:
             return self.datasets[obj][idx]

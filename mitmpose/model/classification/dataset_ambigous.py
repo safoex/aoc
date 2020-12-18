@@ -46,7 +46,7 @@ class ManyAmbigousObjectsLabeledRenderedDataset(ManyObjectsRenderedDataset):
             self._sorted, _ = torch.max(self.labeler._sorted, dim=2)
             for i in range(self._sorted.shape[1]):
                 arg_sorted = torch.argsort(self._sorted[:, i])
-                self._sorted[arg_sorted, i] = torch.linspace(0, 1, self._sorted.shape[0])
+                self._sorted[arg_sorted, i] = torch.linspace(0, 1, self._sorted.shape[0], device=self.labeler.ae.device)
 
         return self._sorted
 
@@ -93,9 +93,9 @@ class ManyAmbigousObjectsLabeledRenderedDataset(ManyObjectsRenderedDataset):
         self.labeler.save(folder)
         self.recalculate_fin_labels()
 
-    def load_dataset(self, folder):
+    def load_dataset(self, folder, with_codebooks=True):
         super(ManyAmbigousObjectsLabeledRenderedDataset, self).load_dataset(folder)
-        self.labeler.load(folder)
+        self.labeler.load(folder, with_codebooks)
         self.recalculate_fin_labels()
 
     def __getitem__(self, idx):

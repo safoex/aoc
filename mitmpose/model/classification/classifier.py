@@ -12,14 +12,15 @@ import pytorch_lightning as pl
 
 
 class ObjectClassifier(pl.LightningModule):
-    def __init__(self, num_target_classes, with_labels=False):
+    def __init__(self, num_target_classes, with_labels=False, freeze_conv=False):
         super().__init__()
         # init a pretrained resnet
         self.classifier = torchvision.models.resnet18(pretrained=True)
 
         # freeze weights of feature extractor
-        # for param in self.classifier.parameters():
-        #     param.requires_grad = False
+        if freeze_conv:
+            for param in self.classifier.parameters():
+                param.requires_grad = False
 
         # set a number of target_classes
         num_filters = self.classifier.fc.in_features

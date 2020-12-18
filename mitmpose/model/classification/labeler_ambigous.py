@@ -191,8 +191,9 @@ class AmbigousObjectsLabeler:
         torch.save(self.fin_labels, workdir + '/' + 'fin_labels.pt')
         torch.save(self.extra_cl_sims, workdir + '/' + 'cl_sims.pt')
 
-    def load(self, workdir):
-        self.load_codebooks(workdir)
+    def load(self, workdir, with_codebooks=True):
+        if with_codebooks:
+            self.load_codebooks(workdir)
         self._labels = self.load_array(workdir, 'labels.pt')
         self._simililarities = self.load_array(workdir, 'similarities.pt')
         self._eulers = self.load_array(workdir, 'eulers.pt')

@@ -9,10 +9,11 @@ import matplotlib.pyplot as plt
 
 
 if __name__ == '__main__':
-    wdir = workdir + '/datasets_augmented'
-
-    ae = AAE(128, 128, (128, 256, 256, 512))
-    ae.load_state_dict(torch.load(wdir + '/ae128.pth'))
+    # wdir = workdir + '/datasets_augmented'
+    wdir  = '/home/safoex/Documents/data/aae/babyfood3'
+    # ae = AAE(128, 128, (128, 256, 256, 512))
+    ae = AAE(128, 256, (128, 256, 256, 512))
+    ae.load_state_dict(torch.load(wdir + '/multi256.pth'))
 
     ae.cuda()
 

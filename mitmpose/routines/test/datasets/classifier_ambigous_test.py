@@ -7,15 +7,20 @@ from matplotlib import pyplot as plt
 
 
 if __name__ == '__main__':
-    workdir = '/home/safoex/Documents/data/aae/test_labels'
+    workdir = '/home/safoex/Documents/data/aae/babyfood3'
     # models_dir = '/content/drive/My Drive/iit/research/scans/models_fixed'
     # models_dir = workdir
     # models_names = ['fragola', 'pistacchi', 'tiramisu']
-    # models = {mname: {'model_path': models_dir + '/' + mname + '.obj', 'camera_dist': None} for mname in models_names}
-    ae_path = workdir + '/multi_boxes256.pth'
+    models_names = ['meltacchin', 'melpollo']
+    # models_names = ['humana1', 'humana2']
+    models = {mname: {'model_path': models_dir + '/' + mname + '.obj', 'camera_dist': None} for mname in models_names}
 
-    grider = Grid(300, 6)
-    grider_codebook = Grid(1000, 10)
+    # ae_path = workdir + '/multi_boxes256.pth'
+    ae_path = workdir + '/multi256.pth'
+
+    grider = Grid(200, 5)
+    # grider_codebook = Grid(1000, 10)
+    grider_codebook = Grid(4000, 40)
 
     ae = AAE(128, 256, (128, 256, 256, 512))
     ae.cuda()
@@ -40,8 +45,8 @@ if __name__ == '__main__':
         'classification_transform': cltrans
     }
 
-    sue = SortedUncertaintyExperiment(ds_args, workdir, epochs=3, fraction_step=0.02)
-    # sue.create_dataset()
+    sue = SortedUncertaintyExperiment(ds_args, workdir, epochs=5, fraction_step=0.05, freeze_conv=True)
+    sue.create_dataset()
     results = sue.series_experiment()
     fraction_midpoint = []
     corrects_left = []
