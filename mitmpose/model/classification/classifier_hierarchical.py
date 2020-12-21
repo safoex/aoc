@@ -103,7 +103,7 @@ class HierarchicalClassifier:
 
     def save_local_classifiers(self, threshold=0.2):
         self.in_class_classifiers = {
-            cl: ObjectClassifier(len(subclasses)) for cl, subclasses in self.classes.items()
+            cl: ObjectClassifier(len(subclasses), freeze_conv=False) for cl, subclasses in self.classes.items()
         }
         for cl, subclasses in self.classes.items():
             trainer = pl.Trainer(gpus=1, max_epochs=4)
@@ -177,14 +177,14 @@ if __name__ == '__main__':
     models_names = ['meltacchin', 'melpollo', 'humana1', 'humana2']
     models = {mname: {'model_path': models_dir + '/' + mname + '.obj', 'camera_dist': None} for mname in models_names}
     grider = Grid(300, 20)
-    ds = HierarchicalManyObjectsDataset(grider, models, res=256,
+    ds = HierarchicalManyObjectsDataset(grider, models, res=236, classification_transform=HierarchicalManyObjectsDataset.transform_normalize,
                                         aae_render_transform=AAETransform(0.5,
                                                                           '/home/safoex/Documents/data/VOCtrainval_11-May-2012',
-                                                                          add_patches=False, add_aug=False, size=(256, 256)),
+                                                                          add_patches=False, add_aug=False, size=(236, 236)),
                                         aae_scale_factor=1.5)
-    # ds = HierarchicalManyObjectsDataset(grider, models, aae_render_transform=AAETransform(0.5,
-    #                                                                       '/home/safoex/Documents/data/VOCtrainval_11-May-2012',
-    #                                                                       add_patches=True))
+    ds = HierarchicalManyObjectsDataset(grider, models, aae_render_transform=AAETransform(0.5,
+                                                                          '/home/safoex/Documents/data/VOCtrainval_11-May-2012',
+                                                                          add_patches=True))
 
     # ds.set_mode('aae')
     # ds.create_dataset(workdir)

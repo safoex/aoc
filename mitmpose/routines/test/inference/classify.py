@@ -179,6 +179,8 @@ class InferenceClassifier:
         crop = self.detect_and_crop(img_path)
         if crop is None:
             return
+
+        original_crop = crop.copy()
         crop = T.ToTensor()(crop / 255.).to(self.device).view(1, 3, 128, 128)
         with torch.no_grad():
             global_class = torch.argmax(self.hcl.global_classifier(crop)).item()
@@ -211,7 +213,9 @@ class InferenceClassifier:
                         bad_pose = True
                         break
             if not bad_pose:
-                lcl = torch.argmax(self.hcl.in_class_classifiers[gcl](crop)).item()
+                pil_crop = Image.fromarray(original_crop.astype(np.uint8))
+                normalized_crop = HierarchicalManyObjectsDataset.transform_inference(pil_crop).view(1, 3, 224, 224).cuda()
+                lcl = torch.argmax(self.hcl.in_class_classifiers[gcl](normalized_crop)).item()
                 result = [gcl, self.hcl.classes[gcl][lcl], max_cl]
                 return result
             else:
@@ -224,7 +228,7 @@ if __name__ == '__main__':
     models_names = ['meltacchin', 'melpollo', 'humana1', 'humana2']
     models = {mname: {'model_path': models_dir + '/' + mname + '.obj', 'camera_dist': None} for mname in models_names}
     grider = Grid(100, 5)
-    ds = HierarchicalManyObjectsDataset(grider, models, res=236,
+    ds = HierarchicalManyObjectsDataset(grider, models, res=236, classification_transform=HierarchicalManyObjectsDataset.transform_normalize,
                                         aae_render_transform=AAETransform(0.5,
                                                                           '/home/safoex/Documents/data/VOCtrainval_11-May-2012',
                                                                           add_patches=False, size=(236, 236)))
