@@ -114,7 +114,7 @@ class InferenceClassifier:
         if bbox is None:
             return None
         # print(bbox)
-        return self.crop_and_resize(img, [bbox[0][0], bbox[1][0], bbox[0][1], bbox[1][1]])
+        return self.crop_and_resize(img, [bbox[0][0], bbox[1][0], bbox[0][1], bbox[1][1]], target_res=target_res)
 
     def get_xyz(self, grid):
         a = Rotation.from_matrix(grid).as_euler('xyz')
@@ -180,12 +180,12 @@ class InferenceClassifier:
         if crop is None:
             return
 
-        original_crop = crop.copy()
+        original_crop = self.detect_and_crop(img_path, target_res=224)
         crop = T.ToTensor()(crop / 255.).to(self.device).view(1, 3, 128, 128)
         with torch.no_grad():
             global_class = torch.argmax(self.hcl.global_classifier(crop)).item()
             # print(global_class)
-        # gcl = self.hcl.global_classes[global_class]
+        gcl_cl = self.hcl.global_classes[global_class]
         gcl = self.global_classify_with_aaes(crop)
         aae = self.hcl.aaes[gcl]
         t_input = crop
@@ -216,10 +216,10 @@ class InferenceClassifier:
                 pil_crop = Image.fromarray(original_crop.astype(np.uint8))
                 normalized_crop = HierarchicalManyObjectsDataset.transform_inference(pil_crop).view(1, 3, 224, 224).cuda()
                 lcl = torch.argmax(self.hcl.in_class_classifiers[gcl](normalized_crop)).item()
-                result = [gcl, self.hcl.classes[gcl][lcl], max_cl]
+                result = [gcl, gcl_cl, self.hcl.classes[gcl][lcl], max_cl]
                 return result
             else:
-                return [gcl, None]
+                return [gcl, gcl_cl, None]
 
 
 if __name__ == '__main__':
@@ -263,23 +263,32 @@ if __name__ == '__main__':
             inference.cdbks[lcl] = Codebook(hcl.aaes[gcl], OnlineRenderDataset(Grid(4000, 40), models[lcl]['model_path']))
             inference.cdbks[lcl].load(workdir + '/' + gcl + '/' + 'codebook_%s.pt' % lcl)
 
+    # model_names = ['melpollo', 'meltacchin', 'humana1', 'humana2']
+    # radiuses = [0.35, 0.27, 0.35, 0.32]
+    #
+    # path_to_panda_data = '/home/safoex/Documents/data/aae/panda_data/data/'
+    # N = 30
+
     model_names = ['melpollo', 'meltacchin', 'humana1', 'humana2']
-    radiuses = [0.35, 0.27, 0.35, 0.32]
+    radiuses = [0.30, 0.30, 0.30, 0.30]
+
+    path_to_panda_data = '/home/safoex/Documents/data/aae/10_12_2020/'
+    N = 100
 
     for model_name, radius in list(zip(model_names, radiuses))[0:]:
         print('----------%s--------' % model_name)
         test_imgs = [
-            '/home/safoex/Documents/data/aae/panda_data/data/%s/rad_%.2f/image_%d.png' % (model_name, radius, i) for i in range(1, 30)
+            path_to_panda_data + '%s/rad_%.2f/image_%d.png' % (model_name, radius, i) for i in range(1, N)
         ]
 
         for i, img_path in enumerate(test_imgs):
             with torch.no_grad():
                 print(inference.classify(img_path, threshold=0.4), i)
 
-    # checkdir = '/home/safoex/Documents/data/aae/panda_data/test/' + model_name + '/'
-    # if not os.path.exists(checkdir):
-    #     os.mkdir(checkdir)
-    #
-    # for i, img_path in enumerate(test_imgs):
-    #     inference.log_steps(img_path, checkdir + 'img_%d_a.png' % i, checkdir + 'img_%d_crop.png' % i,
-    #                         checkdir + 'img_%d_rec.png' % i, checkdir + 'img_%d' % i + '_z_%d.png')
+        # checkdir = '/home/safoex/Documents/data/aae/panda_data/test/' + model_name + '/'
+        # if not os.path.exists(checkdir):
+        #     os.mkdir(checkdir)
+
+        # for i, img_path in enumerate(test_imgs):
+        #     inference.log_steps(img_path, checkdir + 'img_%d_a.png' % i, checkdir + 'img_%d_crop.png' % i,
+        #                         checkdir + 'img_%d_rec.png' % i, checkdir + 'img_%d' % i + '_z_%d.png')

@@ -79,7 +79,7 @@ class HierarchicalClassifier:
         self.load_aae(aae, path, device)
 
     def save_global_classifier(self):
-        self.global_classifier = ObjectClassifier(len(self.classes), freeze_conv=True)
+        self.global_classifier = ObjectClassifier(len(self.classes), freeze_conv=False)
         trainer = pl.Trainer(gpus=1, max_epochs=1)
 
         ocdm = ObjectClassifierDataModule(self.dataset)
@@ -106,7 +106,7 @@ class HierarchicalClassifier:
             cl: ObjectClassifier(len(subclasses), freeze_conv=False) for cl, subclasses in self.classes.items()
         }
         for cl, subclasses in self.classes.items():
-            trainer = pl.Trainer(gpus=1, max_epochs=4)
+            trainer = pl.Trainer(gpus=1, max_epochs=7)
             # TODO: remove assumptions that there are two objects
 
             def is_valid_rotation(rot, lbler):
@@ -206,8 +206,8 @@ if __name__ == '__main__':
 
     hcl.load_labelers()
 
-    # hcl.save_global_classifier()
-    hcl.save_local_classifiers()
+    hcl.save_global_classifier()
+    # hcl.save_local_classifiers()
 
     print(len(hcl.dataset))
     testdir = '/home/safoex/Documents/data/aae/panda_data/test/global_ds/'

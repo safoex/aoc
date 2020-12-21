@@ -68,8 +68,8 @@ class ObjectClassifier(pl.LightningModule):
         imgs = torch.cat([x[i] for i in range(preds_n)], 2)
         tensorboard.add_image('images', imgs.cpu(),
                               self.current_epoch, dataformats="CHW")
-        logs = {'val_loss': val_loss, 'corrects': corrects}
-        return {'val_loss': val_loss, 'corrects': corrects, 'log': logs}
+        logs = {'val_loss': val_loss, 'corrects': corrects, 'loss': val_loss}
+        return {'val_loss': val_loss, 'corrects': corrects, 'loss': val_loss, 'log': logs}
 
     def test_step(self, batch, batch_nb, ds_idx=None):
         x, l = batch
