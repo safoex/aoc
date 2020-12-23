@@ -18,9 +18,12 @@ class ManyObjectsRenderedDataset(Dataset):
 
     transform_normalize = transforms.Compose([
         transforms.ToPILImage(),
-        transforms.Resize(236),
-        transforms.RandomAffine(20, (0.1, 0.1), (0.9, 1.1)),
-        transforms.RandomCrop(224),
+        transforms.RandomApply([
+            transforms.Resize(236),
+            transforms.RandomAffine(20, (0.1, 0.1), (0.9, 1.1)),
+            transforms.RandomCrop(224),
+        ], 0.5),
+        transforms.Resize(224),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])

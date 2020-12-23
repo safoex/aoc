@@ -1,4 +1,5 @@
 import torchvision
+from torchvision import transforms
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
@@ -18,6 +19,7 @@ import os
 import numpy as np
 from torchvision import transforms as T
 from scipy.spatial.transform import Rotation
+from torch.utils.data import RandomSampler
 
 
 class HierarchicalClassifier:
@@ -80,9 +82,9 @@ class HierarchicalClassifier:
 
     def save_global_classifier(self):
         self.global_classifier = ObjectClassifier(len(self.classes), freeze_conv=False)
-        trainer = pl.Trainer(gpus=1, max_epochs=1)
+        trainer = pl.Trainer(gpus=1, max_epochs=2)
 
-        ocdm = ObjectClassifierDataModule(self.dataset)
+        ocdm = ObjectClassifierDataModule(self.dataset, subset_fraction=1)
 
         trainer.fit(self.global_classifier, ocdm)
         torch.save(self.global_classifier.state_dict(), self.workdir + '/' + 'global.pth')
@@ -106,7 +108,7 @@ class HierarchicalClassifier:
             cl: ObjectClassifier(len(subclasses), freeze_conv=False) for cl, subclasses in self.classes.items()
         }
         for cl, subclasses in self.classes.items():
-            trainer = pl.Trainer(gpus=1, max_epochs=7)
+            trainer = pl.Trainer(gpus=1, max_epochs=3)
             # TODO: remove assumptions that there are two objects
 
             def is_valid_rotation(rot, lbler):
@@ -172,7 +174,8 @@ class HierarchicalClassifier:
 
 
 if __name__ == '__main__':
-    workdir = '/home/safoex/Documents/data/aae/release2/release'
+    # workdir = '/home/safoex/Documents/data/aae/release2/release'
+    workdir = '/home/safoex/Documents/data/aae/release2/release2'
     models_dir = '/home/safoex/Documents/data/aae/models/scans/'
     models_names = ['meltacchin', 'melpollo', 'humana1', 'humana2']
     models = {mname: {'model_path': models_dir + '/' + mname + '.obj', 'camera_dist': None} for mname in models_names}
@@ -182,9 +185,9 @@ if __name__ == '__main__':
                                                                           '/home/safoex/Documents/data/VOCtrainval_11-May-2012',
                                                                           add_patches=False, add_aug=False, size=(236, 236)),
                                         aae_scale_factor=1.5)
-    ds = HierarchicalManyObjectsDataset(grider, models, aae_render_transform=AAETransform(0.5,
-                                                                          '/home/safoex/Documents/data/VOCtrainval_11-May-2012',
-                                                                          add_patches=True))
+    # ds = HierarchicalManyObjectsDataset(grider, models, aae_render_transform=AAETransform(0.5,
+    #                                                                       '/home/safoex/Documents/data/VOCtrainval_11-May-2012',
+    #                                                                       add_patches=True))
 
     # ds.set_mode('aae')
     # ds.create_dataset(workdir)
@@ -206,15 +209,16 @@ if __name__ == '__main__':
 
     hcl.load_labelers()
 
-    hcl.save_global_classifier()
-    # hcl.save_local_classifiers()
+    for i, cl in enumerate(classes):
+        if not os.path.exists(workdir + '/%d' % i):
+            os.mkdir(workdir + '/%d' % i)
+
+    for x in np.random.randint(0, len(ds), 50):
+        img, label = ds[x]
+        transforms.ToPILImage()(img).convert("RGB").save(workdir + '/%d/%d.png' % (label, x))
+
+    # hcl.save_global_classifier()
+    hcl.save_local_classifiers(threshold=0.6)
 
     print(len(hcl.dataset))
-    testdir = '/home/safoex/Documents/data/aae/panda_data/test/global_ds/'
-    if not os.path.exists(testdir):
-        os.mkdir(testdir)
-
-    for idx in np.random.randint(0, len(hcl.dataset), 40):
-        img, lbl = hcl.dataset[idx]
-        (T.ToPILImage()(img.cpu())).save(testdir + 'img_%d_%d.png' % (idx, lbl))
 

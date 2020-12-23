@@ -11,6 +11,7 @@ from mitmpose.model.classification.classifier_hierarchical import HierarchicalCl
 from scipy.spatial.transform import Rotation
 from mitmpose.model.pose.codebooks.codebook import Codebook, OnlineRenderDataset
 import os, sys
+import pickle
 
 COCO_INSTANCE_CATEGORY_NAMES = [
     '__background__', 'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus',
@@ -175,7 +176,7 @@ class InferenceClassifier:
                 match_img = self.cdbks[lcl]._ds[i_best][0]
                 T.ToPILImage()(torch.from_numpy(match_img)).save(cdbk_path_pattern % i)
 
-    def classify(self, img_path, robot_orientation=None, threshold=0.4):
+    def classify(self, img_path, robot_orientation=None, threshold=0.4, assume_global_class=None):
         crop = self.detect_and_crop(img_path)
         if crop is None:
             return
@@ -183,13 +184,26 @@ class InferenceClassifier:
         original_crop = self.detect_and_crop(img_path, target_res=224)
         crop = T.ToTensor()(crop / 255.).to(self.device).view(1, 3, 128, 128)
         with torch.no_grad():
-            global_class = torch.argmax(self.hcl.global_classifier(crop)).item()
+            pil_crop = Image.fromarray(original_crop.astype(np.uint8))
+            normalized_crop = HierarchicalManyObjectsDataset.transform_inference(pil_crop).view(1, 3, 224, 224).cuda()
+            global_class = torch.argmax(self.hcl.global_classifier(normalized_crop)).item()
             # print(global_class)
         gcl_cl = self.hcl.global_classes[global_class]
         gcl = self.global_classify_with_aaes(crop)
         aae = self.hcl.aaes[gcl]
         t_input = crop
         result = [gcl, None]
+        result = [gcl, gcl_cl, None, None, None, None]
+        # [
+        # global class according to AAE,
+        # global class according to global classifier,
+        # score assuming local class 0,
+        # score assuming local class 1,
+        # local class according to local classifier,
+        # local class according to AAE
+        # ]
+        if assume_global_class is not None:
+            gcl = assume_global_class
         with torch.no_grad():
             bad_pose = False
 
@@ -203,27 +217,37 @@ class InferenceClassifier:
 
             for i, lcl in enumerate(self.hcl.classes[gcl]):
                 tops, idcs = torch.topk(self.cdbks[lcl].cos_sim(aae.encoder.forward(t_input)), 2)
+                max_score = 0
                 for idx in idcs:
                     rot = self.cdbks[lcl].grider.grid[idx]
                     close_idcs = self.get_closest_without_inplane(rot, self.hcl.labelers[gcl].grider.grid, 1)
                     # TODO: remove this hack only for two
                     scores = self.hcl.labelers[gcl]._sorted[close_idcs, i, 1 - i]
                     # print(scores)
+                    if  torch.max(scores) > max_score:
+                        max_score = torch.max(scores)
+
                     if torch.any(scores > threshold):
                         bad_pose = True
-                        break
-            if not bad_pose:
-                pil_crop = Image.fromarray(original_crop.astype(np.uint8))
-                normalized_crop = HierarchicalManyObjectsDataset.transform_inference(pil_crop).view(1, 3, 224, 224).cuda()
-                lcl = torch.argmax(self.hcl.in_class_classifiers[gcl](normalized_crop)).item()
-                result = [gcl, gcl_cl, self.hcl.classes[gcl][lcl], max_cl]
-                return result
-            else:
-                return [gcl, gcl_cl, None]
+
+                result[2 + i] = max_score.cpu().item()
+
+            # if not bad_pose:
+            pil_crop = Image.fromarray(original_crop.astype(np.uint8))
+            normalized_crop = HierarchicalManyObjectsDataset.transform_inference(pil_crop).view(1, 3, 224, 224).cuda()
+
+            lcl = torch.argmax(self.hcl.in_class_classifiers[gcl](normalized_crop)).item()
+            # result = [gcl, gcl_cl, self.hcl.classes[gcl][lcl], max_cl]
+            result[4] = self.hcl.classes[gcl][lcl]
+            result[5] = max_cl
+            return result
+            # else:
+            #     return [gcl, gcl_cl, None]
 
 
 if __name__ == '__main__':
-    workdir = '/home/safoex/Documents/data/aae/release2/release'
+    # workdir = '/home/safoex/Documents/data/aae/release2/release'
+    workdir = '/home/safoex/Documents/data/aae/release2/release2'
     models_dir = '/home/safoex/Documents/data/aae/models/scans/'
     models_names = ['meltacchin', 'melpollo', 'humana1', 'humana2']
     models = {mname: {'model_path': models_dir + '/' + mname + '.obj', 'camera_dist': None} for mname in models_names}
@@ -241,6 +265,11 @@ if __name__ == '__main__':
 
     classes = {'babyfood': ['meltacchin', 'melpollo'],
                'babymilk': ['humana1', 'humana2']}
+    def global_class_of(local_class, classes):
+        for gcl, gcl_list in classes.items():
+            if local_class in gcl_list:
+                return gcl
+        return None
     ds.make_hierarchical_dataset(
         classes
     )
@@ -273,18 +302,30 @@ if __name__ == '__main__':
     radiuses = [0.30, 0.30, 0.30, 0.30]
 
     path_to_panda_data = '/home/safoex/Documents/data/aae/10_12_2020/'
-    N = 100
+    N = None
 
+    results = {
+
+    }
     for model_name, radius in list(zip(model_names, radiuses))[0:]:
         print('----------%s--------' % model_name)
+        if N is None:
+            n = len(os.listdir(path_to_panda_data + '%s/rad_%.2f' % (model_name, radius)))
+        else:
+            n = N
         test_imgs = [
-            path_to_panda_data + '%s/rad_%.2f/image_%d.png' % (model_name, radius, i) for i in range(1, N)
+            path_to_panda_data + '%s/rad_%.2f/image_%d.png' % (model_name, radius, i) for i in range(1, n)
         ]
-
+        results[model_name] = []
         for i, img_path in enumerate(test_imgs):
             with torch.no_grad():
-                print(inference.classify(img_path, threshold=0.4), i)
+                result = inference.classify(img_path, threshold=0.4, assume_global_class=global_class_of(model_name, classes))
+                results[model_name].append(result)
+                print(result, i)
 
+
+    with open(workdir + '/results_0.6.pickle', 'wb') as f:
+        pickle.dump(results, f)
         # checkdir = '/home/safoex/Documents/data/aae/panda_data/test/' + model_name + '/'
         # if not os.path.exists(checkdir):
         #     os.mkdir(checkdir)
