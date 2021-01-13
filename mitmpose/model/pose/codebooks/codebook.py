@@ -58,7 +58,7 @@ class Codebook:
         img = np.moveaxis(img, 2, 0) / 255.0
         img = img[np.newaxis, :, :, :]
         self.model.eval()
-        code = self.model.encoder.forward(torch.Tensor(img).cuda())
+        code = self.model.encoder.forward(torch.Tensor(img).to(self.model.device))
         if norm:
             code /= torch.norm(code)
         return code
@@ -108,7 +108,7 @@ class Codebook:
         assert rots1.shape == rots2.shape
         with torch.no_grad():
             if len(rots1.shape) > 2:
-                codes = [torch.FloatTensor(rots1.shape[0], self.model.latent_size).cuda() for _ in range(2)]
+                codes = [torch.FloatTensor(rots1.shape[0], self.model.latent_size).to(self.model.device) for _ in range(2)]
                 for i, rot12 in enumerate(zip(rots1, rots2)):
                     imgs = [self._ds.objren.render_and_crop(rot)[0] for rot in rot12]
                     for code, img in zip(codes, imgs):
@@ -121,7 +121,7 @@ class Codebook:
     def latent_exact(self, rots):
         with torch.no_grad():
             if len(rots.shape) > 2:
-                codes = torch.FloatTensor(rots.shape[0], self.model.latent_size).cuda()
+                codes = torch.FloatTensor(rots.shape[0], self.model.latent_size).to(self.model.device)
                 for i, rot in enumerate(rots):
                     img = self._ds.objren.render_and_crop(rot)[0]
                     codes[i, :] = self.latent(img)
@@ -152,7 +152,7 @@ class CodebookGrad(Codebook):
         return self._interpolator
 
     def latent_approx(self, rots):
-        return torch.FloatTensor(self.interpolator(rots)).cuda()
+        return torch.FloatTensor(self.interpolator(rots)).to(self.model.device)
 
 
 if __name__ == "__main__2":

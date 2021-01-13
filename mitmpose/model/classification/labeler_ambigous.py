@@ -223,7 +223,7 @@ def render_and_save(ds, rot, path=None, rec_path=None, ae=None):
     img = np.moveaxis(img, 2, 0) / 255.0
     t_img = torch.tensor(img)
     if rec_path:
-        t_img_rec = ae.forward(t_img[None, :, :, :].cuda()).cpu()
+        t_img_rec = ae.forward(t_img[None, :, :, :].to(ae.device)).cpu()
         transforms.ToPILImage()(t_img_rec[0, :, :, :]).convert("RGB").save(rec_path)
     if path:
         img = transforms.ToPILImage()(t_img).convert("RGB")
