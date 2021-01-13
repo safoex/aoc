@@ -127,7 +127,7 @@ class HierarchicalClassifier:
 
             ds = self.dataset.get_dataset(subclasses, grid_subsets)
             ds.load_dataset(self.workdir)
-            self.debug_print_dataset(ds, '/home/safoex/Documents/data/aae/panda_data/test/' + cl + '/', 100)
+            # self.debug_print_dataset(ds, '/home/safoex/Documents/data/aae/panda_data/test/' + cl + '/', 100)
             ocdm = ObjectClassifierDataModule(ds)
 
             trainer.fit(self.in_class_classifiers[cl], ocdm)
