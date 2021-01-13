@@ -251,7 +251,8 @@ if __name__ == '__main__':
     models_dir = '/home/safoex/Documents/data/aae/models/scans/'
     models_names = ['meltacchin', 'melpollo', 'humana1', 'humana2']
     models = {mname: {'model_path': models_dir + '/' + mname + '.obj', 'camera_dist': None} for mname in models_names}
-    grider = Grid(100, 5)
+    # grider = Grid(100, 5)
+    grider = Grid(300, 20)
     ds = HierarchicalManyObjectsDataset(grider, models, res=236, classification_transform=HierarchicalManyObjectsDataset.transform_normalize,
                                         aae_render_transform=AAETransform(0.5,
                                                                           '/home/safoex/Documents/data/VOCtrainval_11-May-2012',
@@ -290,6 +291,7 @@ if __name__ == '__main__':
     for gcl, subclasses in classes.items():
         for lcl in subclasses:
             inference.cdbks[lcl] = Codebook(hcl.aaes[gcl], OnlineRenderDataset(Grid(4000, 40), models[lcl]['model_path']))
+            # inference.cdbks[lcl].save(workdir + '/' + gcl + '/' + 'codebook_%s.pt' % lcl)
             inference.cdbks[lcl].load(workdir + '/' + gcl + '/' + 'codebook_%s.pt' % lcl)
 
     # model_names = ['melpollo', 'meltacchin', 'humana1', 'humana2']
@@ -324,7 +326,7 @@ if __name__ == '__main__':
                 print(result, i)
 
 
-    with open(workdir + '/results_0.6.pickle', 'wb') as f:
+    with open(workdir + '/results_0.6a.pickle', 'wb') as f:
         pickle.dump(results, f)
         # checkdir = '/home/safoex/Documents/data/aae/panda_data/test/' + model_name + '/'
         # if not os.path.exists(checkdir):

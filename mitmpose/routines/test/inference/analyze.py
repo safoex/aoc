@@ -11,8 +11,15 @@ def global_class_of(local_class, classes):
             return gcl
     return None
 
-with open(workdir + '/results_0.6.pickle', 'rb') as f:
+extra_folder = 'local_%.2f' % 0.4
+
+# with open(workdir + '/results_0.6.pickle', 'rb') as f:
+#     results = pickle.load(f)
+
+with open(workdir + '/'+  extra_folder + '/' + 'results.pickle', 'rb') as f:
     results = pickle.load(f)
+
+
 
 av_results = []
 
@@ -59,6 +66,7 @@ def plot_results(some_results, title, threshold):
     plt.plot(X, 0.5 * np.ones_like(X), 'r', label='0.5 prob baseline')
     plt.legend()
     plt.show()
+
 
 for proc_name in proc_funcs:
     plot_results(proc_results[proc_name], proc_name, "3/5")
