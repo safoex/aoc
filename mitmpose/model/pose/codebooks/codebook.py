@@ -14,25 +14,31 @@ from tqdm import  tqdm
 
 
 class Codebook:
-    def __init__(self, model: AAE, dataset: RenderedDataset, batch_size=32):
+    def __init__(self, model: AAE, dataset: [RenderedDataset, OnlineRenderDataset], batch_size=32, latent_size=None):
         self.model = model
         self.dataset = IndexedDataset(dataset)
         self._codebook = None
         self.batch_size = batch_size
         self.grider = dataset.grider
         self._ds = dataset
+        self.device = next(self.model.parameters()).device
+
+        self.encoder = self.model
+        if isinstance(self.model, AAE):
+            self.encoder = self.model.encoder
+
+        self.latent_size = latent_size or self.model.latent_size
 
     @property
     def codebook(self):
         if self._codebook is None:
             dl = DataLoader(self.dataset, batch_size=self.batch_size, shuffle=False)
-            model_device = next(self.model.parameters()).device
-            self._codebook = torch.zeros((len(self.dataset), self.model.latent_size), dtype=torch.float32).to(device=model_device)
+            self._codebook = torch.zeros((len(self.dataset), self.latent_size), dtype=torch.float32).to(device=self.device)
             self.model.eval()
             for data, idcs in tqdm(dl):
                 imgs = data[0]
                 with torch.no_grad():
-                    self._codebook[idcs, :] = self.model.encoder.forward(imgs.to(device=model_device))
+                    self._codebook[idcs, :] = self.encoder.forward(imgs.to(device=self.device))
 
             self.normalize_(self._codebook)
 
@@ -57,8 +63,8 @@ class Codebook:
     def latent(self, img, norm=True):
         img = np.moveaxis(img, 2, 0) / 255.0
         img = img[np.newaxis, :, :, :]
-        self.model.eval()
-        code = self.model.encoder.forward(torch.Tensor(img).to(self.model.device))
+        with torch.no_grad():
+            code = self.encoder.forward(torch.Tensor(img).to(self.device))
         if norm:
             code /= torch.norm(code)
         return code
@@ -92,7 +98,7 @@ class Codebook:
         torch.save(self.codebook, path)
 
     def load(self, path):
-        self._codebook = torch.load(path, map_location=self.model.device)
+        self._codebook = torch.load(path, map_location=self.device)
 
     def _cross_loss_idx(self, idcs1, idcs2):
         return self.cos_sim(self.codebook[idcs1], self.codebook[idcs2], True, True)
@@ -108,7 +114,7 @@ class Codebook:
         assert rots1.shape == rots2.shape
         with torch.no_grad():
             if len(rots1.shape) > 2:
-                codes = [torch.FloatTensor(rots1.shape[0], self.model.latent_size).to(self.model.device) for _ in range(2)]
+                codes = [torch.FloatTensor(rots1.shape[0], self.latent_size).to(self.device) for _ in range(2)]
                 for i, rot12 in enumerate(zip(rots1, rots2)):
                     imgs = [self._ds.objren.render_and_crop(rot)[0] for rot in rot12]
                     for code, img in zip(codes, imgs):
@@ -121,7 +127,7 @@ class Codebook:
     def latent_exact(self, rots):
         with torch.no_grad():
             if len(rots.shape) > 2:
-                codes = torch.FloatTensor(rots.shape[0], self.model.latent_size).to(self.model.device)
+                codes = torch.FloatTensor(rots.shape[0], self.latent_size).to(self.device)
                 for i, rot in enumerate(rots):
                     img = self._ds.objren.render_and_crop(rot)[0]
                     codes[i, :] = self.latent(img)
@@ -129,7 +135,6 @@ class Codebook:
                 codes = self.latent(self._ds.objren.render_and_crop(rots)[0])
 
         return codes
-
 
     def verify(self, rots):
         cl = torch.zeros(rots.shape[0])
@@ -152,7 +157,7 @@ class CodebookGrad(Codebook):
         return self._interpolator
 
     def latent_approx(self, rots):
-        return torch.FloatTensor(self.interpolator(rots)).to(self.model.device)
+        return torch.FloatTensor(self.interpolator(rots)).to(self.device)
 
 
 if __name__ == "__main__2":

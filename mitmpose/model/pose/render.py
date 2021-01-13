@@ -9,9 +9,12 @@ from PIL import Image
 from mitmpose.model.pose.grids.grids import fibonacci_sphere_rot
 import scipy
 
+import torch
+from torchvision import transforms
+
 
 class ObjectRenderer:
-    def __init__(self, path, camera_dist=0.5, res_side=640, intensity=(3,20)):
+    def __init__(self, path, camera_dist=0.5, res_side=640, intensity=(3,20), target_res=128, aae_scale_factor=1.2):
         tmesh = trimesh.load(path)
         self.mesh_size = scipy.linalg.norm(np.array(tmesh.bounding_box_oriented.extents))
         self.camera_dist_coefficient = 1.5
@@ -39,10 +42,12 @@ class ObjectRenderer:
         dl = pyrender.DirectionalLight(color=[1.0, 1.0, 1.0], intensity=intensity_first)
         self.light = self.scene.add(dl)
         self.res_side = res_side
+        self.target_res = target_res
         self.renderer = pyrender.OffscreenRenderer(self.res_side, self.res_side)
 
         self.directional_intensity = intensity
 
+        self.aae_scale_factor = aae_scale_factor
 
     def set_camera_dist(self, camera_dist):
         camera_pose = np.array([
@@ -115,7 +120,25 @@ class ObjectRenderer:
 
         return rmin, rmax, cmin, cmax
 
-    def render_and_crop(self, rot, target_res=128):
+    def crop_and_resize(self, color, bbox, target_res=None):
+        target_res = target_res or self.target_res
+        row_center = int(np.mean(bbox[:2]))
+        col_center = int(np.mean(bbox[2:]))
+        widest = max(bbox[1] - bbox[0], bbox[3] - bbox[2])
+        half_side = int((widest * self.aae_scale_factor) / 2)
+        left = row_center - half_side
+        right = row_center + half_side
+        top = col_center - half_side
+        bottom = col_center + half_side
+
+        final_box = (top, left, bottom, right)
+
+        return np.array(Image.fromarray(color).crop(final_box).resize((target_res, target_res)), dtype=np.float32), \
+               np.array(Image.fromarray((depth > 0).astype(np.uint8)).crop(final_box).resize((target_res, target_res)),
+                        dtype=np.float32)
+
+    def render_and_crop(self, rot, target_res=None):
+        target_res = target_res or self.target_res
         color, depth = self.render(rot)
         bbox = self.bbox(depth)
         row_center = int(np.mean(bbox[:2]))
@@ -139,7 +162,7 @@ class ObjectRenderer:
         final_box = (top, left, bottom, right)
 
         return np.array(Image.fromarray(color).crop(final_box).resize((target_res, target_res)), dtype=np.float32), \
-               np.array(Image.fromarray((depth > 0).astype(np.uint8)).crop(final_box).resize((128, 128)), dtype=np.float32)
+               np.array(Image.fromarray((depth > 0).astype(np.uint8)).crop(final_box).resize((target_res, target_res)), dtype=np.float32)
 
     def test_show(self, color, depth):
         import matplotlib.pyplot as plt
@@ -153,6 +176,35 @@ class ObjectRenderer:
         plt.show()
 
 
+def cartesian_product(*arrays):
+    ndim = len(arrays)
+    return np.stack(np.meshgrid(*arrays), axis=-1).reshape(-1, ndim)
+
+
+def sample_around(phi_0, phi_d, phi_n, r, z_0, z_d, z_n):
+    phi = np.linspace(phi_0 - phi_d / 2, phi_0 + phi_d / 2, phi_n)
+    z = np.linspace(z_0 - z_d / 2, z_0 + z_d / 2, z_n)
+    phi_z = cartesian_product(phi, z)
+    # print(phi_z)
+    x_y_z = np.zeros((len(phi_z), 3))
+    x_y_z[:, 0] = np.cos(phi_z[:, 0]) * r
+    x_y_z[:, 1] = np.sin(phi_z[:, 0]) * r
+    x_y_z[:, 2] = phi_z[:, 1]
+    extra_rot = Rotation.from_euler('xyz', x_y_z).as_matrix()
+    return phi_z, extra_rot
+
+def render_and_save(objren, rot, path=None, rec_path=None, ae=None):
+    img, _ = objren.render_and_crop(rot)
+    img = np.moveaxis(img, 2, 0) / 255.0
+    t_img = torch.tensor(img)
+    if rec_path:
+        t_img_rec = ae.forward(t_img[None, :, :, :].cuda()).cpu()
+        transforms.ToPILImage()(t_img_rec[0, :, :, :]).convert("RGB").save(rec_path)
+    if path:
+        img = transforms.ToPILImage()(t_img).convert("RGB")
+        img.save(path)
+
+
 if __name__ == "__main__":
     from scipy.stats import special_ortho_group
     from scipy.spatial.transform import Rotation
@@ -161,32 +213,22 @@ if __name__ == "__main__":
     fuze_path = '/home/safoex/Documents/libs/pyrender/examples/models/drill.obj'
     fuze_path = '/home/safoex/Documents/data/aae/models/scans/cleaner.obj'
     # fuze_path = '/home/safoex/Documents/data/aae/models/scans/tiramisu.obj'
-    fuze_path = '/home/safoex/Documents/data/aae/models/scans/fragola.obj'
+    fuze_path = '/home/safoex/Documents/data/aae/models/textured.obj'
+    # fuze_path = '/home/safoex/Downloads/006_mustard_bottle_berkeley_meshes/006_mustard_bottle/poisson/textured.obj'
+    # fuze_path = '/home/safoex/Downloads/005_tomato_soup_can_berkeley_meshes/005_tomato_soup_can/poisson/textured.obj'
     objren = ObjectRenderer(fuze_path, None, 640, intensity=(10, 10))
     # color, depth = objren.render(special_ortho_group.rvs(3))
+
+    rot = special_ortho_group.rvs(3)
+    phi_z, extra_rots = sample_around(0, 2*np.pi, 10, 5*np.pi/180, 0, 7*np.pi/180, 10)
+
+    rots = np.zeros_like(extra_rots)
+    for i in range(extra_rots.shape[0]):
+        rot_r = extra_rots[i].dot(rot)
+        # rot_r = rot.dot(extra_rots[i])
+        # print(rot_r)
+        render_and_save(objren, rot_r, '/home/safoex/Documents/data/aae/test_rots/im%d.png'%i)
+
     color, depth = objren.render(special_ortho_group.rvs(3))
-    # Show the images
-    import time
 
-    start = time.clock()
-    # for i in range(2):
-    R = special_ortho_group.rvs(3)
-    euler = np.array([2.51397823, -1.1410451,  -0.72252894])
-    # input tiramisu
-    euler = np.array([0.53941419,  0.51667277, -2.09448489])
-    euler = np.array([2.194764,   0.23944807, 2.43638052])
-    euler = np.array([ 1.73685346,  0.39140481, -0.6275145 ])
-
-    # results fragola
-    # euler = np.array([ 0.56844635,  0.46664381, -2.13957151])
-    # euler = np.array([2.16805872, 0.32883891, 2.37892383])
-    # euler = np.array([ 1.72305475,  0.43310983, -0.70947355])
-    euler = np.array([-0.49961313, -0.46085245,  2.33708826])
-    R = Rotation.from_euler('xyz', euler).as_matrix()
-    color, depth = objren.render(R)
-    print(Rotation.from_matrix(R).as_euler('xyz'))
-        # print(objren.bbox(depth))
-    # objren.find_optimal_camera_distance()
-    fin = time.clock()
-    print(fin - start)
     objren.test_show(color, depth)

@@ -8,18 +8,20 @@ from mitmpose.model.classification.dataset_ambigous import ManyAmbigousObjectsLa
 from mitmpose.model.pose.grids.grids import Grid
 from mitmpose.model.pose.datasets.augment import AAETransform
 
+from torch.utils.data import RandomSampler
 import pytorch_lightning as pl
 
 
 class ObjectClassifier(pl.LightningModule):
-    def __init__(self, num_target_classes, with_labels=False):
+    def __init__(self, num_target_classes, with_labels=False, freeze_conv=False):
         super().__init__()
         # init a pretrained resnet
         self.classifier = torchvision.models.resnet18(pretrained=True)
 
         # freeze weights of feature extractor
-        # for param in self.classifier.parameters():
-        #     param.requires_grad = False
+        if freeze_conv:
+            for param in self.classifier.parameters():
+                param.requires_grad = False
 
         # set a number of target_classes
         num_filters = self.classifier.fc.in_features
@@ -67,8 +69,8 @@ class ObjectClassifier(pl.LightningModule):
         imgs = torch.cat([x[i] for i in range(preds_n)], 2)
         tensorboard.add_image('images', imgs.cpu(),
                               self.current_epoch, dataformats="CHW")
-        logs = {'val_loss': val_loss, 'corrects': corrects}
-        return {'val_loss': val_loss, 'corrects': corrects, 'log': logs}
+        logs = {'val_loss': val_loss, 'corrects': corrects, 'loss': val_loss}
+        return {'val_loss': val_loss, 'corrects': corrects, 'loss': val_loss, 'log': logs}
 
     def test_step(self, batch, batch_nb, ds_idx=None):
         x, l = batch
@@ -98,19 +100,31 @@ def validation_end(self, outputs):
 
 class ObjectClassifierDataModule(pl.LightningDataModule):
     def __init__(self, ds: [ManyObjectsRenderedDataset, ManyAmbigousObjectsLabeledRenderedDataset],
-                 batch_size=4, num_workers=4, val_part=0.1):
+                 batch_size=4, num_workers=4, val_part=0.1, subset_fraction=1.0):
         super().__init__()
         self.batch_size = batch_size
         self.num_workers = num_workers
         trains_num = int(len(ds) * (1 - val_part))
         vals_num = len(ds) - trains_num
         self.train_ds, self.val_ds = random_split(ds, [trains_num, vals_num])
+        self.subset_fraction = subset_fraction
 
     def train_dataloader(self):
-        return DataLoader(self.train_ds, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=True)
+        if self.subset_fraction < 1.0:
+            sampler = RandomSampler(self.train_ds, True, int(self.subset_fraction * len(self.train_ds)))
+            shuffle = False
+        else:
+            sampler = None
+            shuffle = True
+
+        return DataLoader(self.train_ds, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=shuffle, sampler=sampler)
 
     def val_dataloader(self):
-        return DataLoader(self.val_ds, batch_size=self.batch_size, num_workers=self.num_workers)
+        if self.subset_fraction < 1.0:
+            sampler = RandomSampler(self.val_ds, True, int(self.subset_fraction * len(self.val_ds)))
+        else:
+            sampler = None
+        return DataLoader(self.val_ds, batch_size=self.batch_size, num_workers=self.num_workers, sampler=sampler)
 
 
 if __name__ == '__main__':

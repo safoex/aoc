@@ -8,16 +8,19 @@ from tqdm.auto import trange, tqdm
 from scipy.optimize import minimize
 from scipy.spatial.transform import Rotation
 import numpy as np
+import torchvision
 import shutil
 
 
 class AmbigousObjectsLabeler:
     def __init__(self, models, grider_label, grider_codebook, ae, knn_median=5, borderline=0.25, width=0.1,
-                 magic_grad_steps=5, magic_nn_points=6, magic_shrink_constant=0.4, magic_shrink_exp=1.5):
+                 magic_grad_steps=5, magic_nn_points=6, magic_shrink_constant=0.4, magic_shrink_exp=1.5,
+                 extra_encoder=None, extra_latent_size=None, extra_render_res=224, extra_encoder_weight=0, ae_weight=1):
         self.models = models
         self.grider = grider_label
         self.grider_cdbk = grider_codebook
         self.ae = ae
+        self.ae_weight = ae_weight
         self._codebooks = None
         self._simililarities = None
         self._arg_simililarities = None
@@ -36,16 +39,49 @@ class AmbigousObjectsLabeler:
         self.borderline = borderline
         self.width = width
 
+        # constants for "gradient descent"-like converging search
         self.magic_grad_steps = magic_grad_steps
         self.magic_nn_points = magic_nn_points
         self.magic_shrink_constant = magic_shrink_constant
         self.magic_shrink_exp = magic_shrink_exp
 
+        # use features from pretrained classifier as extra source of differences
+        self.extra_encoder = extra_encoder
+        self.extra_latent_size = extra_latent_size
+        self.extra_render_res = extra_render_res
+        self._extra_cl_sims = None
+        self.extra_encoder_weight = extra_encoder_weight
+
+
+    def recalculate_extra_cl_sims(self):
+        self._extra_cl_sims = torch.zeros_like(self.similarities)
+        if self.extra_encoder is not None and self.extra_encoder_weight > 0:
+            codebooks = [
+                Codebook(self.extra_encoder, OnlineRenderDataset(
+                    self.grider, self.models[mname]['model_path'], render_res=self.extra_render_res
+                ), latent_size=self.extra_latent_size)
+                for i, mname in enumerate(self.models)
+            ]
+
+            for i in range(len(self.models)):
+                for j in range(len(self.models)):
+                    if i != j:
+                        eulers_to = self._eulers[:, i, j, :].cpu()
+                        rots_to = Rotation.from_euler('xyz', eulers_to).as_matrix()
+                        lats_to = codebooks[j].latent_exact(rots_to)
+                        lats_from = codebooks[i].codebook
+                        self._extra_cl_sims[:, i, j] = codebooks[i].cos_sim(lats_from, lats_to)
+
+    @property
+    def extra_cl_sims(self):
+        if self._extra_cl_sims is None:
+            self.recalculate_extra_cl_sims()
+
+        return self._extra_cl_sims
 
     @property
     def codebooks(self):
         if self._codebooks is None:
-            self.ae.eval()
             self._codebooks = {}
             for mname, mprop in self.models.items():
                 ds = OnlineRenderDataset(self.grider_cdbk, mprop['model_path'], camera_dist=None)
@@ -95,7 +131,6 @@ class AmbigousObjectsLabeler:
     @property
     def similarities(self):
         if self._simililarities is None:
-            self.ae.eval()
             self._simililarities = torch.zeros((len(self.grider.grid), len(self.models), len(self.models)), device=self.ae.device)
             self._arg_simililarities = torch.zeros_like(self._simililarities)
             self._searched = torch.zeros_like(self._simililarities)
@@ -154,15 +189,27 @@ class AmbigousObjectsLabeler:
         torch.save(self._searched, workdir + '/' + 'searched.pt')
         # torch.save(self._sorted, workdir + '/' + 'sorted.pt')
         torch.save(self.fin_labels, workdir + '/' + 'fin_labels.pt')
+        torch.save(self.extra_cl_sims, workdir + '/' + 'cl_sims.pt')
 
-    def load(self, workdir):
-        self.load_codebooks(workdir)
-        self._labels = torch.load(workdir + '/' + 'labels.pt')
-        self._simililarities = torch.load(workdir + '/' + 'similarities.pt')
-        self._eulers = torch.load(workdir + '/' + 'eulers.pt')
-        self._searched = torch.load(workdir + '/' + 'searched.pt')
+    def load(self, workdir, with_codebooks=True):
+        if with_codebooks:
+            self.load_codebooks(workdir)
+        self._labels = self.load_array(workdir, 'labels.pt')
+        self._simililarities = self.load_array(workdir, 'similarities.pt')
+        self._eulers = self.load_array(workdir, 'eulers.pt')
+        self._searched = self.load_array(workdir, '/' + 'searched.pt')
         # self._sorted = torch.load(workdir + '/' + 'sorted.pt')
-        self._fin_labels = torch.load(workdir + '/' + 'fin_labels.pt')
+        self._fin_labels = self.load_array(workdir, '/' + 'fin_labels.pt')
+        self._extra_cl_sims = self.load_array(workdir, 'cl_sims.pt')
+
+    def load_array(self, workdir, name, alt_example=None):
+        if os.path.exists(workdir + '/' + name):
+            return torch.load(workdir + '/' + name, map_location=self.ae.device)
+        else:
+            if alt_example is not None:
+                return torch.zeros_like(alt_example)
+            else:
+                return None
 
     @property
     def smooth_labels(self):
@@ -196,10 +243,17 @@ class AmbigousObjectsLabeler:
         for i in range(len(self.models)):
             for j in range(len(self.models)):
                 if i != j:
-                    arg_sorted = torch.argsort(self.smooth_labels[:, i, j])
+                    sorting_metric = self.ae_weight * self.smooth_labels[:, i, j]
+                    if self.extra_encoder_weight != 0:
+                        sorting_metric += self.extra_encoder_weight * self.extra_cl_sims[:, i, j]
+                    arg_sorted = torch.argsort(sorting_metric)
                     self._sorted[arg_sorted, i, j] = torch.linspace(0, 1, len(self._sorted[:, i, j]), device=self.ae.device)
                     self._fin_labels[:, i, j] = self.to_curve(self._sorted[:, i, j], self.borderline, self.width)
         self._fin_labels /= torch.sum(self._fin_labels, dim=2, keepdim=True)
+
+    def recalculate_extra_features_sorted(self):
+        self._ef_sorted = torch.zeros_like(self._sorted)
+
 
     @property
     def fin_labels(self):
@@ -236,9 +290,9 @@ def print_out_sim_views(labeler: AmbigousObjectsLabeler, models_names, models, i
     model_from = models_names[i_from]
     model_to = models_names[i_to]
 
-    tops, idcs = torch.topk(-labeler.smooth_labels[:, i_from, i_to], top_n)
+    tops, idcs = torch.topk(-labeler._sorted[:, i_from, i_to], top_n)
 
-    print(tops)
+    # print(tops)
     i_min = idcs[0].item()
     rot_min = labeler.grider.grid[i_min]
 
@@ -247,11 +301,11 @@ def print_out_sim_views(labeler: AmbigousObjectsLabeler, models_names, models, i
         os.mkdir(wdir_save)
 
     grider = Grid(100, 1)
-    ods = {mname: OnlineRenderDataset(grider, models[mname]['model_path'], camera_dist=None) for mname in models_names}
+    ods = {mname: OnlineRenderDataset(grider, models[mname]['model_path'], camera_dist=None, res=512) for mname in models_names}
 
     for i, idx in enumerate(idcs):
         render_and_save(ods[model_from], rot=labeler.grider.grid[idx.item()], path=wdir_save + '/' + 'top%d.png' % i)
-        euler_found = labeler._eulers[idx.item(), i_from, i_to, :]
+        euler_found = labeler._eulers[idx.item(), i_from, i_to, :].cpu()
         # print(euler_found)
         rot_found = Rotation.from_euler('xyz', euler_found).as_matrix()
         render_and_save(ods[model_to], rot=rot_found, path=wdir_save + '/' + 'top%d_f.png' % i)
@@ -261,66 +315,39 @@ if __name__ == "__main__":
     # models_names = ['tonno_low', 'pollo', 'polpa']
     wdir_root = '/home/safoex/Documents/data/aae'
     models_dir = wdir_root + '/models/scans'
-    models_names = ['fragola', 'pistacchi', 'tiramisu']
+    # models_names = ['fragola', 'pistacchi', 'tiramisu']
+    models_names = ['humana1', 'humana2']
     models = {mname: {'model_path': models_dir + '/' + mname + '.obj'} for mname in models_names}
-    workdir = wdir_root + '/test_labeler'
+    # workdir = wdir_root + '/test_labeler'
+    workdir = wdir_root + '/babymilk'
     if not os.path.exists(workdir):
         os.mkdir(workdir)
     grider = Grid(300, 1)
 
     ae = AAE(128, 256, (128, 256, 256, 512))
-    ae_path = wdir_root + '/multi_boxes256.pth'
+    # ae_path = wdir_root + '/multi_boxes256.pth'
+    ae_path = workdir + '/multi256.pth'
     ae.load_state_dict(torch.load(ae_path))
 
     ae.cuda()
 
-    labeler = AmbigousObjectsLabeler(models, grider_label=grider, grider_codebook=Grid(1000, 10), ae=ae)
+    cl = torchvision.models.resnet18(pretrained=True).cuda()
+    lat_size = cl.fc.in_features
+    cl = torch.nn.Sequential(*list(cl.children())[:-1], torch.nn.Flatten())
+
+    labeler = AmbigousObjectsLabeler(models, grider_label=grider, grider_codebook=Grid(1000, 10), ae=ae,
+                                     extra_encoder=cl, extra_latent_size=lat_size, extra_encoder_weight=1, ae_weight=0)
     # labeler.load_codebooks(workdir)
     labeler.load(workdir)
-    # labeler.save(workdir)
+    # labeler.recalculate_extra_cl_sims()
+    labeler.recalculate_fin_labels()
+    labeler.save(workdir)
 
-    # test_on = 'pistacchi'
-    # online_ds_fragola = OnlineRenderDataset(grider, models['fragola']['model_path'], camera_dist=None)
-    # online_ds = OnlineRenderDataset(grider, models[test_on]['model_path'], camera_dist=None)
-    #
-    # ods = {mname: OnlineRenderDataset(grider, models[mname]['model_path'], camera_dist=None) for mname in models_names}
-
-    # euler = np.array([ 2.51397823, -1.1410451,  -0.72252894])
-
-    # euler = np.array([ 0.53941419,  0.51667277, -2.09448489])
-    # euler = np.array([2.194764,   0.23944807, 2.43638052])
-    # euler = np.array([ 1.73685346,  0.39140481, -0.6275145 ])
-    # euler = np.array([-0.52187396, -0.3788934,   2.31570534])
-
-    for i_from, i_to in itertools.product(range(3), range(3)):
+    for i_from, i_to in itertools.product(range(len(models)), range(len(models))):
         if i_from != i_to:
             top_n = 300
             wdir_save = workdir + '/' + 'tops_%d_%d' % (i_from, i_to)
             labeler.knn_median = 10
 
             print_out_sim_views(labeler, models_names, models, i_from, i_to, top_n, wdir_save)
-
-    # print(Rotation.from_matrix(rot_min).as_euler('xyz'))
-    # color, depth = online_ds.objren.render(labeler.grider.grid[i_min])
-    # online_ds.objren.test_show(color, depth)
-
-
-    # ae_ideal = AAE(128, 128, (128, 256, 256, 512)).cuda()
-    #
-    # ae_ideal.load_state_dict(torch.load('/home/safoex/Documents/data/aae/cans_pth2/pollo/ae128.pth'))
-    #
-    # m_i = labeler.model_idx[test_on]
-    # for i, x in enumerate(np.random.randint(0, len(grider.grid), 10)):
-    #     rot = grider.grid[x]
-    #     wdir = workdir + '/' + 'test_%d' % i
-    #
-    #     if os.path.exists(wdir):
-    #         shutil.rmtree(wdir, ignore_errors=True)
-    #
-    #     os.mkdir(wdir)
-    #
-    #     label = str(labeler.fin_labels[x, m_i, :])
-    #     render_and_save(online_ds, rot, wdir + '/' + 'rendered_p_%s.png' % label, wdir + '/' + 'rec.png', ae)
-        # render_and_save(online_ds, rot, None, wdir + '/' + 'rec_ideal.png', ae_ideal)
-
 
