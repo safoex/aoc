@@ -317,9 +317,11 @@ if __name__ == "__main__":
     models_dir = wdir_root + '/models/scans'
     # models_names = ['fragola', 'pistacchi', 'tiramisu']
     models_names = ['humana1', 'humana2']
+    # models_names = ['melpollo', 'meltacchin']
     models = {mname: {'model_path': models_dir + '/' + mname + '.obj'} for mname in models_names}
     # workdir = wdir_root + '/test_labeler'
-    workdir = wdir_root + '/babymilk'
+    model_name = 'babymilk'
+    workdir = wdir_root + '/' + model_name + '2'
     if not os.path.exists(workdir):
         os.mkdir(workdir)
     grider = Grid(300, 1)
@@ -336,18 +338,53 @@ if __name__ == "__main__":
     cl = torch.nn.Sequential(*list(cl.children())[:-1], torch.nn.Flatten())
 
     labeler = AmbigousObjectsLabeler(models, grider_label=grider, grider_codebook=Grid(1000, 10), ae=ae,
-                                     extra_encoder=cl, extra_latent_size=lat_size, extra_encoder_weight=1, ae_weight=0)
+                                     extra_encoder=cl, extra_latent_size=lat_size, extra_encoder_weight=0, ae_weight=1)
     # labeler.load_codebooks(workdir)
     labeler.load(workdir)
     # labeler.recalculate_extra_cl_sims()
     labeler.recalculate_fin_labels()
-    labeler.save(workdir)
+    # labeler.save(workdir)
+    from matplotlib import pyplot as plt
 
-    for i_from, i_to in itertools.product(range(len(models)), range(len(models))):
-        if i_from != i_to:
-            top_n = 300
-            wdir_save = workdir + '/' + 'tops_%d_%d' % (i_from, i_to)
-            labeler.knn_median = 10
+    N = 300
+    i_from = 0
+    i_to = 1
+    workdir_tops = workdir + '/tops_%d_%d/' % (i_from, i_to)
 
-            print_out_sim_views(labeler, models_names, models, i_from, i_to, top_n, wdir_save)
+    obj1, obj2 = [], []
+
+    from PIL import Image
+    for i in range(N):
+        obj1.append(np.array(Image.open(workdir_tops + "top%d.png" % i)))
+        obj2.append(np.array(Image.open(workdir_tops + "top%d_f.png" % i)))
+
+    loss = [np.linalg.norm(i1 - i2) / np.sum((i1 - i2) > 0) for i1, i2 in zip(obj1, obj2)]
+
+    loss = np.load("/home/safoex/Downloads/babymilk.npy")
+
+    labeler_res = np.sort(labeler._smoothen[:, i_from, i_to].cpu().numpy())
+    scale_labeler = np.max(labeler_res) - np.min(labeler_res)
+    scale_loss = np.max(loss) - np.min(loss)
+
+    zero_labeler = np.min(labeler_res)
+    zero_loss = np.min(loss)
+    # plt.title("%s from obj %d to obj %d" % (model_name, i_from, i_to))
+    # plt.plot( (loss - zero_loss) / scale_loss * scale_labeler + zero_labeler, label="scaled P2P loss")
+    # plt.plot(labeler_res, label="AAE similarity")
+    # plt.legend()
+    # plt.show()
+
+    plt.title("%s from obj %d to obj %d" % (model_name, i_from, i_to))
+    plt.plot((loss - zero_loss) / scale_loss * scale_labeler + zero_labeler, label="scaled SIFT similarity")
+    plt.plot(labeler_res, label="AAE similarity")
+    plt.legend()
+    plt.show()
+
+    # for i_from, i_to in itertools.product(range(len(models)), range(len(models))):
+    #     if i_from != i_to:
+    #         top_n = 300
+    #         wdir_save = workdir + '/' + 'tops_%d_%d' % (i_from, i_to)
+    #         labeler.knn_median = 10
+    #
+    #         print_out_sim_views(labeler, models_names, models, i_from, i_to, top_n, wdir_save)
 

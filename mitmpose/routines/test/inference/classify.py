@@ -39,6 +39,8 @@ class InferenceClassifier:
         self.device = device
         self.cdbks = {}
 
+        self.crops = {}
+
     def get_img(self, img_or_path):
         if isinstance(img_or_path, str):
             img = Image.open(img_or_path)  # Load the image
@@ -108,14 +110,19 @@ class InferenceClassifier:
         return np.array(Image.fromarray(img).crop(final_box).resize((target_res, target_res)), dtype=np.float32)
 
     def detect_and_crop(self, img_path, filter_classes=['book', 'bottle'], target_res=128):
-        img = cv2.imread(img_path)  # Read image with cv2
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)  # Convert to RGB
-        # bbox = closest_to_the_center(img_path, filter_classes)
-        bbox = self.closest_by_size(img_path, filter_classes)
-        if bbox is None:
-            return None
-        # print(bbox)
-        return self.crop_and_resize(img, [bbox[0][0], bbox[1][0], bbox[0][1], bbox[1][1]], target_res=target_res)
+        cache_key = img_path + ' ' + str(filter_classes) + ' ' + str(target_res)
+
+        if not cache_key in self.crops:
+            img = cv2.imread(img_path)  # Read image with cv2
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)  # Convert to RGB
+            # bbox = closest_to_the_center(img_path, filter_classes)
+            bbox = self.closest_by_size(img_path, filter_classes)
+            if bbox is None:
+                return None
+            # print(bbox)
+            self.crops[cache_key] = self.crop_and_resize(img, [bbox[0][0], bbox[1][0], bbox[0][1], bbox[1][1]], target_res=target_res)
+
+        return self.crops[cache_key]
 
     def get_xyz(self, grid):
         a = Rotation.from_matrix(grid).as_euler('xyz')

@@ -193,8 +193,8 @@ def sample_around(phi_0, phi_d, phi_n, r, z_0, z_d, z_n):
     extra_rot = Rotation.from_euler('xyz', x_y_z).as_matrix()
     return phi_z, extra_rot
 
-def render_and_save(objren, rot, path=None, rec_path=None, ae=None):
-    img, _ = objren.render_and_crop(rot)
+def render_and_save(objren, rot, path=None, rec_path=None, ae=None, target_res=128):
+    img, _ = objren.render_and_crop(rot, target_res=target_res)
     img = np.moveaxis(img, 2, 0) / 255.0
     t_img = torch.tensor(img)
     if rec_path:
@@ -208,6 +208,7 @@ def render_and_save(objren, rot, path=None, rec_path=None, ae=None):
 if __name__ == "__main__":
     from scipy.stats import special_ortho_group
     from scipy.spatial.transform import Rotation
+    from tqdm import tqdm
 
     fuze_path = '/home/safoex/Downloads/cat_food/models_fixed/polpa.obj'
     fuze_path = '/home/safoex/Documents/libs/pyrender/examples/models/drill.obj'
@@ -216,19 +217,38 @@ if __name__ == "__main__":
     fuze_path = '/home/safoex/Documents/data/aae/models/textured.obj'
     # fuze_path = '/home/safoex/Downloads/006_mustard_bottle_berkeley_meshes/006_mustard_bottle/poisson/textured.obj'
     # fuze_path = '/home/safoex/Downloads/005_tomato_soup_can_berkeley_meshes/005_tomato_soup_can/poisson/textured.obj'
-    objren = ObjectRenderer(fuze_path, None, 640, intensity=(10, 10))
+
+    models_dir = '/home/safoex/Documents/data/aae/models/scans/'
+    model_name = 'meltacchin'
+    model_path = models_dir + '%s.obj' % model_name
+    objren = ObjectRenderer(model_path, None, 1024, intensity=(10, 10))
     # color, depth = objren.render(special_ortho_group.rvs(3))
 
-    rot = special_ortho_group.rvs(3)
-    phi_z, extra_rots = sample_around(0, 2*np.pi, 10, 5*np.pi/180, 0, 7*np.pi/180, 10)
+    # rot = special_ortho_group.rvs(3)
+    # phi_z, extra_rots = sample_around(0, 2*np.pi, 10, 5*np.pi/180, 0, 7*np.pi/180, 10)
+    #
+    # rots = np.zeros_like(extra_rots)
+    # for i in range(extra_rots.shape[0]):
+    #     rot_r = extra_rots[i].dot(rot)
+    #     render_and_save(objren, rot_r, '/home/safoex/Documents/data/aae/test_rots/im%d.png'%i)
 
-    rots = np.zeros_like(extra_rots)
-    for i in range(extra_rots.shape[0]):
-        rot_r = extra_rots[i].dot(rot)
-        # rot_r = rot.dot(extra_rots[i])
-        # print(rot_r)
-        render_and_save(objren, rot_r, '/home/safoex/Documents/data/aae/test_rots/im%d.png'%i)
+    N = 150
+    eulers = np.zeros((N, 3))
+    eulers[:, 1] = -0.3
+    eulers[:, 0] = np.linspace(0, 2 * np.pi, N, endpoint=False)
+
+    rots = Rotation.from_euler('xyz', eulers).as_matrix()
+    draw_dir_root = '/home/safoex/Documents/data/aae/draw/'
+    draw_dir = draw_dir_root + '%s/' % model_name
+
+    if not os.path.exists(draw_dir_root):
+        os.mkdir(draw_dir_root)
+    if not os.path.exists(draw_dir):
+        os.mkdir(draw_dir)
+
+    for i, rot in tqdm(enumerate(rots)):
+        render_and_save(objren, rot, draw_dir + 'im%03d.png' % i, target_res=512)
 
     color, depth = objren.render(special_ortho_group.rvs(3))
 
-    objren.test_show(color, depth)
+    # objren.test_show(color, depth)

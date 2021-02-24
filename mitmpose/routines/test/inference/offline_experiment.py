@@ -40,6 +40,7 @@ class InferenceOfflineExperiment(Experiment):
         self.radiuses = radiuses
         self.path_to_exp_data_folder = path_to_exp_data_folder
 
+
     def test_and_save_results(self, extra_folder_results="", max_imgs_each_class=None, print_intermediate_results=True):
         results = {
 

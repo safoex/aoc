@@ -96,6 +96,6 @@ if __name__ == '__main__':
     # tc.printout_classes()
 
     # tc.hcl.save_global_classifier()
-    tc.hcl.save_local_classifiers(threshold=0.3, max_epochs=5)
+    # tc.hcl.save_local_classifiers(threshold=0.3, max_epochs=5)
 
     print(len(tc.hcl.dataset))
