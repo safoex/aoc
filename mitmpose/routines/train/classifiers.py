@@ -30,7 +30,7 @@ class Experiment:
 class TrainClassifiers(Experiment):
     def __init__(self, workdir, models_dir, models_names, grider, aae_params=(128, 256, (128, 256, 256, 512)),
                  bg_path='/home/safoex/Documents/data/VOCtrainval_11-May-2012', device=None,
-                 classes=None):
+                 classes=None, grider_labeled_size=300):
         super().__init__(workdir, models_dir, models_names, grider, aae_params, bg_path, device, classes)
         self.ds = HierarchicalManyObjectsDataset(self.grider, self.models, res=236,
                                                  classification_transform=HierarchicalManyObjectsDataset.transform_normalize,
@@ -45,7 +45,7 @@ class TrainClassifiers(Experiment):
 
         self.hcl = HierarchicalClassifier(self.workdir, self.ds, ambiguous_aae_params=self.aae_params,
                                           global_aae_params=self.aae_params,
-                                          device=device)
+                                          device=device, grider_labeled_size=grider_labeled_size)
 
     def create_dataset(self):
         self.ds.create_dataset(self.workdir)

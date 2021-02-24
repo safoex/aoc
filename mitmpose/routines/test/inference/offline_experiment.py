@@ -3,24 +3,26 @@ import torch
 import os
 import pickle
 from mitmpose.routines.train.classifiers import Experiment, TrainClassifiers
-
+from tqdm import tqdm
 
 class InferenceOfflineExperiment(Experiment):
     def __init__(self, workdir, models_dir, models_names, grider, aae_params=(128, 256, (128, 256, 256, 512)),
                  bg_path='/home/safoex/Documents/data/VOCtrainval_11-May-2012', device=None,
-                 classes=None):
+                 classes=None, grider_labeled_size=300):
         super().__init__(workdir, models_dir, models_names, grider, aae_params, bg_path, device, classes)
-        self.tc = TrainClassifiers(workdir, models_dir, models_names, grider, aae_params, bg_path, device, classes)
+        self.tc = TrainClassifiers(workdir, models_dir, models_names, grider, aae_params, bg_path, device, classes, grider_labeled_size=grider_labeled_size)
         self.inference = None
         self.path_to_exp_data_folder = None
         self.radiuses = None
+        self.cache = {}
 
     def load_dataset(self):
         self.tc.load_dataset()
 
-    def load_hcl_and_inference(self, extra_folder_global="", extra_folder_local=""):
+    def load_hcl_and_inference(self, extra_folder_global="", extra_folder_local="", extra_cache=None):
         self.tc.hcl.load_everything(extra_folder_global, extra_folder_local)
-        self.inference = InferenceClassifier(self.tc.hcl, self.device)
+        cache = extra_cache or self.cache 
+        self.inference = InferenceClassifier(self.tc.hcl, self.device, cache=cache)
 
     def load_or_render_codebooks(self, cdbk_grider=Grid(4000, 40)):
         for gcl, subclasses in self.classes.items():
@@ -45,7 +47,7 @@ class InferenceOfflineExperiment(Experiment):
         results = {
 
         }
-        for model_name, radius in list(zip(self.models_names, self.radiuses))[0:]:
+        for model_name, radius in tqdm(list(zip(self.models_names, self.radiuses))[0:]):
             if print_intermediate_results:
                 print('----------%s--------' % model_name)
             if max_imgs_each_class is None:
@@ -56,11 +58,11 @@ class InferenceOfflineExperiment(Experiment):
                 self.path_to_exp_data_folder + '%s/rad_%.2f/image_%d.png' % (model_name, radius, i) for i in range(1, n)
             ]
             results[model_name] = []
-            for i, img_path in enumerate(test_imgs):
+            for i, img_path in tqdm(enumerate(test_imgs)):
                 with torch.no_grad():
                     # threshold is not really used when "assume_global_class" parameter is set
                     result = self.inference.classify(img_path, threshold=0.4,
-                                                     assume_global_class=self.global_class_of(model_name))
+                                                     assume_global_class=self.global_class_of(model_name), cache=self.cache)
                     results[model_name].append(result)
                     if print_intermediate_results:
                         print(result, i)
