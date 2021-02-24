@@ -31,13 +31,15 @@ import torchvision
 
 
 class InferenceClassifier:
-    def __init__(self, hcl: HierarchicalClassifier, device):
+    def __init__(self, hcl: HierarchicalClassifier, device, cache=None):
         self.detector = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
         self.detector.to(device)
         self.detector.eval()
         self.hcl = hcl
         self.device = device
         self.cdbks = {}
+        
+        self.cache = cache or {}
 
     def get_img(self, img_or_path):
         if isinstance(img_or_path, str):
@@ -51,7 +53,7 @@ class InferenceClassifier:
         transform = T.Compose([T.ToTensor()])  # Define PyTorch Transform
         img = transform(img)  # Apply the transform to the image
         with torch.no_grad():
-            pred = self.detector([img.cuda()])  # Pass the image to the model
+            pred = self.detector([img.to(self.device)])  # Pass the image to the model
         #   print(pred)
         filter = [COCO_INSTANCE_CATEGORY_NAMES[cl] in filter_classes for cl in pred[0]['labels']]
         pred = [{k: t[filter] for k, t in pred[0].items()}]
@@ -107,15 +109,25 @@ class InferenceClassifier:
 
         return np.array(Image.fromarray(img).crop(final_box).resize((target_res, target_res)), dtype=np.float32)
 
-    def detect_and_crop(self, img_path, filter_classes=['book', 'bottle'], target_res=128):
-        img = cv2.imread(img_path)  # Read image with cv2
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)  # Convert to RGB
-        # bbox = closest_to_the_center(img_path, filter_classes)
-        bbox = self.closest_by_size(img_path, filter_classes)
-        if bbox is None:
-            return None
-        # print(bbox)
-        return self.crop_and_resize(img, [bbox[0][0], bbox[1][0], bbox[0][1], bbox[1][1]], target_res=target_res)
+    def detect_and_crop(self, img_path, filter_classes=['book', 'bottle'], target_res=128, cache=None):
+        cache_key = img_path + ' ' + str(filter_classes) + ' ' + str(target_res)
+        
+        # print(len(cache), cache_key)
+        if cache_key in cache:
+            return cache[cache_key]
+        else:
+            print('uncached')
+            img = cv2.imread(img_path)  # Read image with cv2
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)  # Convert to RGB
+            # bbox = closest_to_the_center(img_path, filter_classes)
+            bbox = self.closest_by_size(img_path, filter_classes)
+            if bbox is None:
+                cache[cache_key] = None
+            # print(bbox)
+            else:
+                cache[cache_key] = self.crop_and_resize(img, [bbox[0][0], bbox[1][0], bbox[0][1], bbox[1][1]], target_res=target_res)
+
+        return cache[cache_key]
 
     def get_xyz(self, grid):
         a = Rotation.from_matrix(grid).as_euler('xyz')
@@ -176,16 +188,16 @@ class InferenceClassifier:
                 match_img = self.cdbks[lcl]._ds[i_best][0]
                 T.ToPILImage()(torch.from_numpy(match_img)).save(cdbk_path_pattern % i)
 
-    def classify(self, img_path, robot_orientation=None, threshold=0.4, assume_global_class=None):
-        crop = self.detect_and_crop(img_path)
+    def classify(self, img_path, robot_orientation=None, threshold=0.4, assume_global_class=None, cache=None):
+        crop = self.detect_and_crop(img_path, cache=cache)
         if crop is None:
             return
 
-        original_crop = self.detect_and_crop(img_path, target_res=224)
+        original_crop = self.detect_and_crop(img_path, target_res=224, cache=cache)
         crop = T.ToTensor()(crop / 255.).to(self.device).view(1, 3, 128, 128)
         with torch.no_grad():
             pil_crop = Image.fromarray(original_crop.astype(np.uint8))
-            normalized_crop = HierarchicalManyObjectsDataset.transform_inference(pil_crop).view(1, 3, 224, 224).cuda()
+            normalized_crop = HierarchicalManyObjectsDataset.transform_inference(pil_crop).view(1, 3, 224, 224).to(self.device)
             global_class = torch.argmax(self.hcl.global_classifier(normalized_crop)).item()
             # print(global_class)
         gcl_cl = self.hcl.global_classes[global_class]
@@ -214,7 +226,8 @@ class InferenceClassifier:
                 if top > max_score:
                     max_score = top
                     max_cl = lcl
-
+            
+            n_subclasses = len(self.hcl.classes[gcl])
             for i, lcl in enumerate(self.hcl.classes[gcl]):
                 tops, idcs = torch.topk(self.cdbks[lcl].cos_sim(aae.encoder.forward(t_input)), 2)
                 max_score = 0
@@ -222,7 +235,7 @@ class InferenceClassifier:
                     rot = self.cdbks[lcl].grider.grid[idx]
                     close_idcs = self.get_closest_without_inplane(rot, self.hcl.labelers[gcl].grider.grid, 1)
                     # TODO: remove this hack only for two
-                    scores = self.hcl.labelers[gcl]._sorted[close_idcs, i, 1 - i]
+                    scores = torch.cat(tuple(self.hcl.labelers[gcl]._sorted[close_idcs, i, j] for j in range(n_subclasses) if i != j))
                     # print(scores)
                     if  torch.max(scores) > max_score:
                         max_score = torch.max(scores)
@@ -234,7 +247,7 @@ class InferenceClassifier:
 
             # if not bad_pose:
             pil_crop = Image.fromarray(original_crop.astype(np.uint8))
-            normalized_crop = HierarchicalManyObjectsDataset.transform_inference(pil_crop).view(1, 3, 224, 224).cuda()
+            normalized_crop = HierarchicalManyObjectsDataset.transform_inference(pil_crop).view(1, 3, 224, 224).to(self.device)
 
             lcl = torch.argmax(self.hcl.in_class_classifiers[gcl](normalized_crop)).item()
             # result = [gcl, gcl_cl, self.hcl.classes[gcl][lcl], max_cl]

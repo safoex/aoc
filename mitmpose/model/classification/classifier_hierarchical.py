@@ -25,7 +25,7 @@ from torch.utils.data import RandomSampler
 class HierarchicalClassifier:
     def __init__(self, workdir, dataset: HierarchicalManyObjectsDataset,
                  global_aae_params=(), ambiguous_aae_params=(),
-                 get_classifier=lambda: torchvision.models.resnet18(pretrained=True), device=None):
+                 get_classifier=lambda: torchvision.models.resnet18(pretrained=True), device=None, grider_labeled_size=300):
         self.dataset = dataset
         self.global_aae_params = global_aae_params
         self.ambiguous_aae_params = ambiguous_aae_params
@@ -39,6 +39,7 @@ class HierarchicalClassifier:
         self.in_class_classifiers = {}
         self.labelers = {}
         self.device = device
+        self.grider_labeled_size = grider_labeled_size
 
     def train_aae(self, ae: AAE, ds, save_path: str, trainer_params, batch_size=64, num_workers=8):
         dm = AEDataModule(ds, self.workdir, batch_size=batch_size, num_workers=num_workers)
@@ -81,9 +82,9 @@ class HierarchicalClassifier:
             path = self.class_workdir(global_class) + '/' + 'local%d.pth' % aae.latent_size
         self.load_aae(aae, path, device)
 
-    def save_global_classifier(self, max_epochs=2, subset_fraction=0.3, extra_folder=""):
+    def save_global_classifier(self, max_epochs=2, subset_fraction=0.3, extra_folder="", gpu_n=0):
         self.global_classifier = ObjectClassifier(len(self.classes), freeze_conv=False)
-        trainer = pl.Trainer(gpus=1, max_epochs=max_epochs)
+        trainer = pl.Trainer(gpus=[gpu_n], max_epochs=max_epochs)
 
         ocdm = ObjectClassifierDataModule(self.dataset, subset_fraction=subset_fraction)
 
@@ -106,12 +107,12 @@ class HierarchicalClassifier:
             img, lbl = ds[idx]
             (T.ToPILImage()(img.cpu())).save(testdir + 'img_%d_%d.png' % (idx, lbl))
 
-    def save_local_classifiers(self, max_epochs=3, threshold=0.2, extra_folder=""):
+    def save_local_classifiers(self, max_epochs=3, threshold=0.2, extra_folder="", gpu_n=0):
         self.in_class_classifiers = {
             cl: ObjectClassifier(len(subclasses), freeze_conv=False) for cl, subclasses in self.classes.items()
         }
         for cl, subclasses in self.classes.items():
-            trainer = pl.Trainer(gpus=1, max_epochs=max_epochs)
+            trainer = pl.Trainer(gpus=[gpu_n], max_epochs=max_epochs)
 
             # TODO: remove assumptions that there are two objects
 
@@ -166,7 +167,7 @@ class HierarchicalClassifier:
             models_subset = {m: models[m] for m in models if m in self.classes[gcl]}
             workdir_gcl = self.workdir + '/' + gcl
             self.load_local_aae(gcl, workdir_gcl + '/' + 'multi256.pth', device=self.device)
-            self.labelers[gcl] = AmbigousObjectsLabeler(models_subset, grider_label=Grid(300, 1),
+            self.labelers[gcl] = AmbigousObjectsLabeler(models_subset, grider_label=Grid(self.grider_labeled_size, 1),
                                                         grider_codebook=Grid(4000, 40),
                                                         ae=self.aaes[gcl])
             self.labelers[gcl].load(workdir_gcl)
