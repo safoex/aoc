@@ -4,9 +4,12 @@ import pickle
 import os
 
 workdir = '/home/safoex/Documents/data/aae/release2/release2'
-classes = {'babyfood': ['meltacchin', 'melpollo'],
-           'babymilk': ['humana1', 'humana2']}
+# classes = {'babyfood': ['meltacchin', 'melpollo'],
+#            'babymilk': ['humana1', 'humana2']}
 
+classes = {'babymilk': ['humana1', 'humana2']}
+
+all_subclasses = sum([subcl for _, subcl in classes.items()], [])
 
 def global_class_of(local_class, classes):
     for gcl, gcl_list in classes.items():
@@ -45,9 +48,10 @@ def proc_results_f(results_array):
         av_results = []
 
         for lcl, cl_results in results_array.items():
-            for result in cl_results:
-                if result is not None:
-                    av_results.append((pf([result[2], result[3]]), lcl == result[4]))
+            if lcl in all_subclasses:
+                for result in cl_results:
+                    if result is not None:
+                        av_results.append((pf([result[2], result[3]]), lcl == result[4]))
         proc_results[pf_name] = av_results
     return proc_results
 
@@ -125,17 +129,17 @@ def plot_results_from_array(results_array, func_name, title, threshold, labels=N
 
 
 # results_file = '/home/safoex/Documents/data/results.pickle'
-results_file = '/home/safoex/Documents/data/results_22_02_2021.pickle'
+results_file = '/home/safoex/Documents/data/results_24_02_2021.pickle'
 
 with open(results_file, 'rb') as f:
     results_dict = pickle.load(f)
 
 # plot_results(proc_results_f(results_dict[2][0.4])['average'], 0.5, 'aga')
-# figfolder = '/home/safoex/Documents/data/aae/draw/22'
-# figpath = figfolder + "/inference2_0%d.png"
+figfolder = '/home/safoex/Documents/data/aae/draw/milk'
+figpath = figfolder + "/inference2_0%d.png"
 
-figfolder = '/home/safoex/Documents/docs/writings/ambiguousobjectspaper/images/plots/22'
-figpath = figfolder + '/inference2_0%d.pdf'
+# figfolder = '/home/safoex/Documents/docs/writings/ambiguousobjectspaper/images/plots/22'
+# figpath = figfolder + '/inference2_0%d.pdf'
 if not os.path.exists(figfolder):
     os.mkdir(figfolder)
 
@@ -146,7 +150,9 @@ if not os.path.exists(figfolder):
 # plt.show()
 
 lessthan_performance = {k:list() for k in lessthan}
-for t in range(3, 20):
+last_threshold_ = 0.7
+last_threshold = int(last_threshold_ * 20)
+for t in range(3, last_threshold):
     threshold = t / 20.0
     epochs_range = list(range(1, 9))
     perf_lessthan = plot_results_from_array([results_dict[i][threshold] for i in epochs_range], 'average', 'average', threshold,
@@ -156,7 +162,7 @@ for t in range(3, 20):
     plt.savefig(figpath % int(threshold * 100))
     plt.clf()
 
-threshold_list = np.array(list(range(3,20))) / 20.0
+threshold_list = np.array(list(range(3,last_threshold))) / 20.0
 
 for k, perf in lessthan_performance.items():
     plt.plot(threshold_list, perf, label='r < %.1f' % k)
@@ -167,4 +173,4 @@ plt.title('Performance of best among all epochs classifiers \ntested on $rank(R^
 
 plt.savefig(figfolder + '/sumup.pdf')
 plt.savefig(figfolder + '/sumup.png')
-# plt.show()
+plt.show()
