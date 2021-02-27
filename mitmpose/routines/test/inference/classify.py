@@ -303,7 +303,7 @@ class InferenceClassifier:
             n_subclasses = len(self.hcl.classes[gcl])
             orientation_hypothesis = list()
             for i, lcl in enumerate(self.hcl.classes[gcl]):
-                tops, idcs = torch.topk(self.cdbks[lcl].cos_sim(aae.encoder.forward(t_input)), 2)
+                tops, idcs = torch.topk(self.cdbks[lcl].cos_sim(aae.encoder.forward(t_input)), 1)
                 max_score = 0
                 for idx in idcs:
                     rot = self.cdbks[lcl].grider.grid[idx]

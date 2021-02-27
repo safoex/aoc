@@ -246,9 +246,9 @@ if __name__ == "__main__":
     if not os.path.exists(draw_dir):
         os.mkdir(draw_dir)
 
-    for i, rot in tqdm(enumerate(rots)):
-        render_and_save(objren, rot, draw_dir + 'im%03d.png' % i, target_res=512)
+    # for i, rot in tqdm(enumerate(rots)):
+    #     render_and_save(objren, rot, draw_dir + 'im%03d.png' % i, target_res=512)
 
     color, depth = objren.render(special_ortho_group.rvs(3))
 
-    # objren.test_show(color, depth)
+    objren.test_show(color, depth)

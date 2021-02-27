@@ -1,5 +1,8 @@
 from mitmpose.routines.test.inference.next_pose import *
 from mitmpose.model.classification.dataset_hierarchical import *
+import shutil
+from torchvision import transforms as T
+
 
 class FakeResponse:
     def __init__(self, recorded_data_dir):
@@ -21,7 +24,7 @@ class FakeResponse:
         return self.get_i(idx)
 
     def get_idx_of(self, rot):
-        return np.argmin(np.linalg.norm(np.array(self.traj.rots) - rot, axis=(1,2)))
+        return np.argmin(np.linalg.norm(np.array(self.traj.rots) - rot, axis=(1, 2)))
 
     def get_by_rot(self, rot):
         return self.get_i(self.get_idx_of(rot))
@@ -29,12 +32,10 @@ class FakeResponse:
 
 workdir = "/home/safoex/Documents/data/aae/release3"
 
-
 assumed_class = 'babyfood'
 testclass = 'melpollo'
 
-
-panda_dir = "/home/safoex/Documents/data/aae/panda_data_10_02_2021/%s/%s_2/rad_0.35" % (testclass, testclass)
+panda_dir = "/home/safoex/Documents/data/aae/panda_data_10_02_2021/%s/%s_0/rad_0.35" % (testclass, testclass)
 
 fr = FakeResponse(panda_dir)
 
@@ -53,11 +54,9 @@ ds = HierarchicalManyObjectsDataset(grider, models, res=236,
                                                                       '/home/safoex/Documents/data/VOCtrainval_11-May-2012',
                                                                       add_patches=False, size=(236, 236)))
 
-nipple = NextPoseProvider(workdir, ds, fr.traj.rots, device, classes)
+nipple = NextPoseProvider(workdir, ds, fr.traj.rots, device, classes, fr=fr)
 nipple.load_everything("", "")
 nipple.load_or_render_codebooks()
-
-
 
 checkdir = panda_dir + '/check/'
 if not os.path.exists(checkdir):
@@ -69,7 +68,6 @@ if not os.path.exists(checkdir):
 #                         checkdir + 'img_%d_rec.png' % i, checkdir + 'img_%d' % i + '_z_%d.png', assume_global_class=assumed_class)
 
 
-
 succeded = 0
 improved = 0
 worsen = 0
@@ -77,25 +75,47 @@ total = 0
 incorrect = 0
 
 ambiguity_threshold = 0.3
-jump_limit = 6
-for _ in range(100):
+jump_limit = 1
+test_folder = panda_dir + '/next_corrected_camera_frame/'
+if not os.path.exists(test_folder):
+    os.mkdir(test_folder)
+
+axis = ['x', 'y', 'z']
+
+# pose = special_ortho_group.rvs(3)
+# match_img, mask = nipple.icl.cdbks[classes[assumed_class][0]]._ds.objren.render_and_crop(pose)
+# T.ToPILImage()(torch.from_numpy(np.moveaxis(match_img, 2, 0) / 255.0)).save(test_folder + "_ident.png")
+#
+# for i_axis, ax in enumerate(axis):
+#     eulers = [0, 0, 0]
+#     eulers[i_axis] = np.pi/2
+#     delta_pose = Rotation.from_euler('xyz', eulers).as_matrix()
+#     pose_end = pose.T.dot(delta_pose).T
+#     match_img, mask = nipple.icl.cdbks[classes[assumed_class][0]]._ds.objren.render_and_crop(pose_end)
+#     T.ToPILImage()(torch.from_numpy(np.moveaxis(match_img, 2, 0) / 255.0)).save(test_folder + "_ident_%s.png" % ax)
+
+all_best_poses = []
+for idx in range(100):
     ambiguity = 1
     tabs = ''
-    next_rot = fr.traj.rots[fr.gen_random_idx()]
+    next_rot = fr.traj.rots[idx]
     initial_class = None
     final_class = None
+    j = 0
     try:
-        j = 0
         while ambiguity > ambiguity_threshold and j < jump_limit:
             image_path, rot = fr.get_by_rot(next_rot)
-            result = nipple.classify(image_path, rot, assumed_class, ambiguity_threshold, next_random=False)
+            result = nipple.classify(image_path, rot, assumed_class, ambiguity_threshold, next_random=False, first_i=idx)
             print(tabs, result[0], result[1][1] if result[1] is not None else -1)
             if initial_class is None:
                 initial_class = result[0][4]
             if result[1] is not None:
-                (expected_ambiguity, next_rot), next_i = result[1]
+                (expected_ambiguity, next_rot), next_i, best_poses = result[1]
                 print(tabs, expected_ambiguity)
                 tabs += '\t'
+                shutil.copy(fr.image_paths[idx], test_folder + 'img_%d_in.png' % (idx + 1))
+                shutil.copy(fr.image_paths[next_i], test_folder + 'img_%d_ne.png' % (idx + 1))
+                all_best_poses.append((idx, best_poses))
                 j += 1
             else:
                 ambiguity = 0
@@ -104,7 +124,6 @@ for _ in range(100):
                 final_class = result[0][4]
     except:
         pass
-
     total += 1
 
     if final_class == testclass:
@@ -125,3 +144,10 @@ print('succeded : %d' % succeded)
 print('incorrect : %d' % incorrect)
 print('improved : %d' % improved)
 print('worsen : %d' % worsen)
+#
+#
+
+for idx, best_poses in all_best_poses:
+    for i_, pose in enumerate(best_poses):
+        match_img, mask = nipple.icl.cdbks[classes[assumed_class][i_]]._ds.objren.render_and_crop(pose)
+        T.ToPILImage()(torch.from_numpy(np.moveaxis(match_img, 2, 0) / 255.0)).save(test_folder + 'img_%d_re_%d.png' % (idx + 1, i_))
