@@ -68,6 +68,11 @@ class TrajectoryGenerator:
         x_ax = normalize_rows(x_ax)
 
         self.rots = []
+        self.orig_rots = []
+
+        self.glob_to_feas = {}
+        self.feas_to_glob = {}
+        fidx = 0
         for idx in range(x_ax.shape[0]):
             rot_matrix = np.identity(3)
             rot_matrix = np.transpose(np.stack((
@@ -75,8 +80,12 @@ class TrajectoryGenerator:
                 y_ax[idx, :],
                 z_ax[idx, :]
             )))
+            self.orig_rots.append(rot_matrix)
             if feasibles[idx]:
                 self.rots.append(rot_matrix)
+                self.glob_to_feas[idx] = fidx
+                self.feas_to_glob[fidx]= idx
+                fidx += 1
 
 
 # test_folder + 'img_%d_re_%d.png' % (idx + 1, i_)
@@ -151,8 +160,8 @@ class NextPoseProvider:
         testclass = 'melpollo'
         panda_dir = "/home/safoex/Documents/data/aae/panda_data_10_02_2021/%s/%s_0/rad_0.35" % (testclass, testclass)
         nmoves_dir = panda_dir + '/next_moves/'
-        if not os.path.exists(nmoves_dir):
-            os.mkdir(nmoves_dir)
+        #if not os.path.exists(nmoves_dir):
+        #    os.mkdir(nmoves_dir)
 
         for k, new_camera_pose in enumerate(self.possible_orientations):
             if k % 5 != 0:
