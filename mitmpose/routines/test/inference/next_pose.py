@@ -162,6 +162,7 @@ class NextPoseProvider:
         nmoves_dir = panda_dir + '/next_moves/'
         #if not os.path.exists(nmoves_dir):
         #    os.mkdir(nmoves_dir)
+        all_scores = []
 
         for k, new_camera_pose in enumerate(self.possible_orientations):
             if k % 5 != 0:
@@ -245,7 +246,7 @@ class NextPoseProvider:
             #     print()
 
             # self.print_rendered_pair(possible_object_poses, nmoves_dir + '/im_' + str(k+1) + '_x%d.png', global_class)
-
+            all_scores.append((max_score, k))
             if max_score < min_ambig_pose[0]:
                 min_ambig_pose = (max_score, new_camera_pose)
                 min_i = k
@@ -268,4 +269,4 @@ class NextPoseProvider:
 
         # print("best next image is ", min_i, self.possible_orientations[min_i])
 
-        return min_ambig_pose, min_i, best_expected_poses
+        return min_ambig_pose, min_i, best_expected_poses, all_scores

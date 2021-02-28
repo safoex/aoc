@@ -111,7 +111,7 @@ if __name__ == "__main__":
                 if initial_class is None:
                     initial_class = result[0][4]
                 if result[1] is not None:
-                    (expected_ambiguity, next_rot), next_i, best_poses = result[1]
+                    (expected_ambiguity, next_rot), next_i, best_poses, all_scores = result[1]
                     print(tabs, expected_ambiguity)
                     tabs += '\t'
                     shutil.copy(fr.image_paths[idx], test_folder + 'img_%d_in.png' % (idx + 1))

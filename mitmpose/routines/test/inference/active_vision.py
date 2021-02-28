@@ -84,9 +84,11 @@ if __name__ == "__main__":
             if initial_class is None:
                 initial_class = result[0][4]
             if result[1] is not None:
-                (expected_ambiguity, next_rot), next_i, best_poses = result[1]
+                (expected_ambiguity, next_rot), next_i, best_poses, all_scores = result[1]
                 print(tabs, expected_ambiguity)
-                np.save(response_idx_pattern % j, fr.traj.feas_to_glob[next_i])
+                sorted(all_scores, key=lambda x: x[0])
+                sorted_idcs = [fr.traj.feas_to_glob[kdx] for a, kdx in all_scores]
+                np.save(response_idx_pattern % j, np.array(sorted_idcs))
                 tabs += '\t'
                 # all_best_poses.append((idx, best_poses))
                 j += 1
