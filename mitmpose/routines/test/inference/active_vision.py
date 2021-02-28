@@ -17,18 +17,24 @@ models_dir = prefix + '/models'
 models_names = ['meltacchin', 'melpollo', 'humana1', 'humana2']
 models = {mname: {'model_path': models_dir + '/' + mname + '.obj', 'camera_dist': None} for mname in models_names}
 
-workdir_exp = prefix + '/data/test5/'
-recorded_data_dir = workdir_exp + 'rad_0.25'
-
-assumed_class = 'babymilk'
-
 
 if __name__ == "__main__":
+    
+    workdir_exp = prefix + '/data/' + sys.argv[1] + '/'
+    recorded_data_dir = workdir_exp + 'rad_0.25'
+
+    assumed_class = ''
+    for gcl, lcls in classes.items():
+        if sys.argv[1] in lcls:
+            assumed_class = gcl
+
+
+    
     fr = FakeResponse(recorded_data_dir)
     #print(fr.feasibles)
     
-
-    n_exps = int(sys.argv[1])
+    
+    n_exps = int(sys.argv[2])
 
     # grider = Grid(100, 5)
     grider = Grid(300, 20)
@@ -47,10 +53,12 @@ if __name__ == "__main__":
     exp_dir_pattern = av_test_dir + 'exp_%d/'
     base_dir_pattern = av_test_dir + 'base_%d/'
     jump_limit = 5
-    tests = 5
+    tests = 10
     ambiguity = 1
     tabs = ''
     ambiguity_threshold = 0.01
+
+    with_baseline = False
 
     for t_ in range(2 * tests):
         initial_class = None
@@ -63,8 +71,11 @@ if __name__ == "__main__":
             next_random = False
             dir_pattern = exp_dir_pattern
         else:
-            next_random = True
-            dir_pattern = base_dir_pattern
+            if with_baseline:
+                next_random = True
+                dir_pattern = base_dir_pattern
+            else:
+                continue
 
         image_pattern = dir_pattern % t + '/image_%d.png'
         input_idx_pattern = dir_pattern % t + '/input_idx_%d.npy'
@@ -100,9 +111,9 @@ if __name__ == "__main__":
             result = nipple.classify(image_path, rot, assumed_class, ambiguity_threshold, next_random=next_random,
                                      first_i=idx)
             print(tabs, result[0], result[1][1] if result[1] is not None else -1)
+            
             results.append(result)
-            if initial_class is None:
-                initial_class = result[0][4]
+            
             if result[1] is not None:
                 (expected_ambiguity, next_rot), next_i, best_poses, all_scores = result[1]
                 print(tabs, expected_ambiguity)
@@ -116,9 +127,8 @@ if __name__ == "__main__":
             else:
                 ambiguity = 0
                 np.save(response_idx_pattern % j, -1)
-                final_class = result[0][4]
-            if j == jump_limit:
-                final_class = result[0][4]
+                
+            
         with open(exp_dir_pattern % t + '/results.pickle', 'wb') as f:
             pickle.dump(results, f)
         #except:
