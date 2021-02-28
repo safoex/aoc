@@ -143,9 +143,16 @@ class NextPoseProvider:
             return result, None
 
     def next_pose_random_(self):
-        idx = np.random.randint(0, len(self.possible_orientations), 1)[0]
+        idcs = list(range(0, len(self.possible_orientations)))
+        idcs_return = np.random.permutation(idcs)
+        #idx = np.random.randint(0, len(self.possible_orientations), 1)[0]
+        idx = idcs_return[0]
+        all_scores = [(1, jdx) for jdx in idcs_return]
+        best_poses = None
         rot = self.possible_orientations[idx]
-        return (1, rot), idx
+
+        #(expected_ambiguity, next_rot), next_i, best_poses, all_scores
+        return (1, rot), idx, best_poses, all_scores
 
     def next_pose_(self, orientation_hypothesis, robot_orientation, global_class, next_random, first_i):
         if next_random:
