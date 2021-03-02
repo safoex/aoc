@@ -52,15 +52,19 @@ if __name__ == "__main__":
 
     exp_dir_pattern = av_test_dir + 'exp_%d/'
     base_dir_pattern = av_test_dir + 'base_%d/'
-    jump_limit = 5
+    jump_limit = 1e5
+    sleep_between = 1
     tests = 10
     ambiguity = 1
     tabs = ''
     ambiguity_threshold = 0.01
-
+    ambiguity_threshold_av = 0.25
+    
     with_baseline = False
 
     for t_ in range(2 * tests):
+        if sleep_between > 0:
+            time.sleep(sleep_between)
         initial_class = None
         final_class = None
         j = 0
@@ -114,21 +118,27 @@ if __name__ == "__main__":
             
             results.append(result)
             
+            if result[0] is not None:
+                ambiguity = 0.5*np.sum([result[0][2], result[0][3]])
+
             if result[1] is not None:
                 (expected_ambiguity, next_rot), next_i, best_poses, all_scores = result[1]
                 print(tabs, expected_ambiguity)
                 all_scores = sorted(all_scores, key=lambda x: x[0])
                 print(all_scores[:5])
                 sorted_idcs = [fr.traj.feas_to_glob[kdx] for a, kdx in all_scores]
-                np.save(response_idx_pattern % j, np.array(sorted_idcs))
+                if ambiguity > ambiguity_threshold_av:
+                    np.save(response_idx_pattern % j, np.array(sorted_idcs))
+                else:
+                    np.save(response_idx_pattern % j, np.array(idx * np.ones_like(sorted_idcs, dtype=np.int)))
                 tabs += '\t'
                 # all_best_poses.append((idx, best_poses))
                 j += 1
             else:
                 ambiguity = 0
                 np.save(response_idx_pattern % j, -1)
-                
             
+                        
         with open(exp_dir_pattern % t + '/results.pickle', 'wb') as f:
             pickle.dump(results, f)
         #except:

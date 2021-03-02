@@ -240,7 +240,7 @@ class InferenceClassifier:
                     # TODO: remove this hack only for two
                     scores = torch.cat(tuple(self.hcl.labelers[gcl]._sorted[close_idcs, i, j] for j in range(n_subclasses) if i != j))
                     # print(scores)
-                    if  torch.max(scores) > max_score:
+                    if  torch.max(scores) >= max_score:
                         max_score = torch.max(scores)
 
                     if torch.any(scores > threshold):
@@ -311,7 +311,7 @@ class InferenceClassifier:
                     # TODO: remove this hack only for two
                     scores = torch.cat(tuple(self.hcl.labelers[gcl]._sorted[close_idcs, i, j] for j in range(n_subclasses) if i != j))
                     # print(scores)
-                    if  torch.max(scores) > max_score:
+                    if  torch.max(scores) >= max_score:
                         max_score = torch.max(scores)
                     orientation_hypothesis.append((i, rot))
                     if torch.any(scores > threshold):
