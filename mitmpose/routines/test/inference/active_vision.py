@@ -61,6 +61,7 @@ if __name__ == "__main__":
     ambiguity_threshold_av = 0.25
     
     with_baseline = False
+    DEBUG=False
 
     for t_ in range(2 * tests):
         if sleep_between > 0:
@@ -93,14 +94,16 @@ if __name__ == "__main__":
         while ambiguity > ambiguity_threshold and j < jump_limit:
             image_path = image_pattern % j
             idx_path = input_idx_pattern % j
-            print('wait for:')
-            print(image_path)
-            print(idx_path)
+            if DEBUG:
+                print('wait for:')
+                print(image_path)
+                print(idx_path)
             idx = -1
             while not os.path.exists(image_path) or not os.path.exists(idx_path):
                 if os.path.exists(idx_path):
                     idx = np.load(idx_path).tolist()
-                    print(idx)
+                    if DEBUG:
+                        print(idx)
                     if idx < 0:
                         break
                 time.sleep(0.1)
@@ -108,14 +111,17 @@ if __name__ == "__main__":
             idx = np.load(idx_path).tolist()
             if idx < 0:
                 break
-
-            print("idx is %d" % idx)
+            
+            if DEBUG:
+                print("idx is %d" % idx)
             rot = fr.traj.rots[fr.traj.glob_to_feas[idx]]
 
             result = nipple.classify(image_path, rot, assumed_class, ambiguity_threshold, next_random=next_random,
                                      first_i=idx)
-            print(tabs, result[0], result[1][1] if result[1] is not None else -1)
+            if DEBUG:
+                print(tabs, result[0], result[1][1] if result[1] is not None else -1)
             
+            print(result[0][4])
             results.append(result)
             
             if result[0] is not None:
@@ -123,9 +129,11 @@ if __name__ == "__main__":
 
             if result[1] is not None:
                 (expected_ambiguity, next_rot), next_i, best_poses, all_scores = result[1]
-                print(tabs, expected_ambiguity)
+                if DEBUG:
+                    print(tabs, expected_ambiguity)
                 all_scores = sorted(all_scores, key=lambda x: x[0])
-                print(all_scores[:5])
+                if DEBUG:
+                    print(all_scores[:5])
                 sorted_idcs = [fr.traj.feas_to_glob[kdx] for a, kdx in all_scores]
                 if ambiguity > ambiguity_threshold_av:
                     np.save(response_idx_pattern % j, np.array(sorted_idcs))
