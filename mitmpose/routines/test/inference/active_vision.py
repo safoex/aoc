@@ -51,7 +51,7 @@ if __name__ == "__main__":
     ambiguity = 1
     tabs = ''
     ambiguity_threshold = 0.01
-
+    sleep_between = 0
     for t_ in range(2 * tests):
         initial_class = None
         final_class = None
@@ -76,6 +76,8 @@ if __name__ == "__main__":
         #try:
         results = []
         while ambiguity > ambiguity_threshold and j < jump_limit:
+            if sleep_between > 0:
+                time.sleep(sleep_between)
             image_path = image_pattern % j
             idx_path = input_idx_pattern % j
             print('wait for:')

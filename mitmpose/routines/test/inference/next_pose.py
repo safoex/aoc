@@ -137,7 +137,7 @@ class NextPoseProvider:
             return None, None
         result, orientation_hypothesis = res
 
-        if sum((result[2], result[3]))/2 > ambiguity_threshold:
+        if sum((result[2], result[3]))/2 >= ambiguity_threshold:
             return result, self.next_pose_(orientation_hypothesis, robot_orientation, assume_global_class, next_random, first_i=first_i)
         else:
             return result, None
