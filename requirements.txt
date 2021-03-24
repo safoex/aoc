@@ -3,13 +3,10 @@ scikit-build
 torch>=1.6.0
 tqdm>=4.48.2
 scikit-image~=0.17.2
-# git+https://github.com/lwneal/imutil
-# git+https://github.com/lwneal/logutil
 pyrender>=0.1.43
 matplotlib>=3.3.1
 torchsummary>=1.5.1
 torchvision>=0.7.0
-# git+https://github.com/vicolab/ml-pyxis
 imgaug
 pytorch-lightning~=0.9.0
 joblib>=0.16.0
