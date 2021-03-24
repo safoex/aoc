@@ -1,30 +1,27 @@
 import torchvision
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import torchvision.transforms as TF
-from torch import optim
-from torch.utils.data import DataLoader, random_split, Dataset
-from torch.utils.data.distributed import DistributedSampler
+from torch.utils.data import DataLoader, random_split
 
 from mitmpose.model.classification.dataset import ManyObjectsRenderedDataset
-from mitmpose.model.so3.grids import Grid
-from mitmpose.model.so3.augment import AAETransform
+from mitmpose.model.classification.dataset_ambigous import ManyAmbigousObjectsLabeledRenderedDataset
+from mitmpose.model.pose.grids.grids import Grid
+from mitmpose.model.pose.datasets.augment import AAETransform
 
-from PIL import Image
-import numpy as np
+from torch.utils.data import RandomSampler
 import pytorch_lightning as pl
 
 
 class ObjectClassifier(pl.LightningModule):
-    def __init__(self, num_target_classes):
+    def __init__(self, num_target_classes, with_labels=False, freeze_conv=False):
         super().__init__()
         # init a pretrained resnet
-        self.classifier = torchvision.models.resnet50(pretrained=True)
+        self.classifier = torchvision.models.resnet18(pretrained=True)
 
         # freeze weights of feature extractor
-        for param in self.classifier.parameters():
-            param.requires_grad = False
+        if freeze_conv:
+            for param in self.classifier.parameters():
+                param.requires_grad = False
 
         # set a number of target_classes
         num_filters = self.classifier.fc.in_features
@@ -33,7 +30,11 @@ class ObjectClassifier(pl.LightningModule):
         # set input_size
         self.input_size = 224
 
-        self.loss = nn.CrossEntropyLoss()
+        self.with_labels = with_labels
+        if self.with_labels:
+            self.loss = nn.BCEWithLogitsLoss()
+        else:
+            self.loss = nn.CrossEntropyLoss()
 
     def forward(self, x):
         return self.classifier(x)
@@ -58,36 +59,72 @@ class ObjectClassifier(pl.LightningModule):
         x, l = batch
         y_hat = self.forward(x)
         val_loss = self.loss(y_hat, l)
-        _, preds = torch.max(y_hat, 1)
-        correct = torch.sum(preds == l).type(torch.float32)
+        if self.with_labels:
+            corrects = torch.sum(torch.argmax(y_hat, dim=1) == torch.argmax(l, dim=1)).float()
+        else:
+            corrects = torch.sum(torch.argmax(y_hat, dim=1) == l).float()
+        corrects /= y_hat.shape[0]
         tensorboard = self.logger.experiment
         preds_n = min(len(x), 3)
         imgs = torch.cat([x[i] for i in range(preds_n)], 2)
         tensorboard.add_image('images', imgs.cpu(),
                               self.current_epoch, dataformats="CHW")
-        return {'val_loss': val_loss, 'corrects': correct, 'preds': y_hat[:preds_n]}
+        logs = {'val_loss': val_loss, 'corrects': corrects, 'loss': val_loss}
+        return {'val_loss': val_loss, 'corrects': corrects, 'loss': val_loss, 'log': logs}
 
-    def validation_end(self, outputs):
+    def test_step(self, batch, batch_nb, ds_idx=None):
+        x, l = batch
+        y_hat = self.forward(x)
+        val_loss = self.loss(y_hat, l)
+        if self.with_labels:
+            corrects = torch.sum(torch.argmax(y_hat, dim=1) == torch.argmax(l, dim=1)).float()
+        else:
+            corrects = torch.sum(torch.argmax(y_hat, dim=1) == l).float()
+        corrects /= y_hat.shape[0]
+        logs = {'val_loss': val_loss, 'corrects': corrects}
+        return {'val_loss': val_loss, 'corrects': corrects, 'log': logs}
+
+    def test_end(self, outputs):
         avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
         avg_corr = torch.stack([x['corrects'] for x in outputs]).mean()
         tensorboard_logs = {'val_loss': avg_loss, 'corrects': avg_corr}
-        return {'avg_val_loss': avg_loss, 'avg_correct_preds': avg_corr, 'log': tensorboard_logs}
+        return {'avg_val_loss': avg_loss, 'log': tensorboard_logs}
+
+
+def validation_end(self, outputs):
+        avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
+        avg_corr = torch.stack([x['corrects'] for x in outputs]).mean()
+        tensorboard_logs = {'val_loss': avg_loss, 'corrects': avg_corr}
+        return {'avg_val_loss': avg_loss, 'log': tensorboard_logs}
 
 
 class ObjectClassifierDataModule(pl.LightningDataModule):
-    def __init__(self, ds: ManyObjectsRenderedDataset, batch_size=4, num_workers=4, val_part=0.1):
+    def __init__(self, ds: [ManyObjectsRenderedDataset, ManyAmbigousObjectsLabeledRenderedDataset],
+                 batch_size=4, num_workers=4, val_part=0.1, subset_fraction=1.0):
         super().__init__()
         self.batch_size = batch_size
         self.num_workers = num_workers
         trains_num = int(len(ds) * (1 - val_part))
         vals_num = len(ds) - trains_num
         self.train_ds, self.val_ds = random_split(ds, [trains_num, vals_num])
+        self.subset_fraction = subset_fraction
 
     def train_dataloader(self):
-        return DataLoader(self.train_ds, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=True)
+        if self.subset_fraction < 1.0:
+            sampler = RandomSampler(self.train_ds, True, int(self.subset_fraction * len(self.train_ds)))
+            shuffle = False
+        else:
+            sampler = None
+            shuffle = True
+
+        return DataLoader(self.train_ds, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=shuffle, sampler=sampler)
 
     def val_dataloader(self):
-        return DataLoader(self.val_ds, batch_size=self.batch_size, num_workers=self.num_workers)
+        if self.subset_fraction < 1.0:
+            sampler = RandomSampler(self.val_ds, True, int(self.subset_fraction * len(self.val_ds)))
+        else:
+            sampler = None
+        return DataLoader(self.val_ds, batch_size=self.batch_size, num_workers=self.num_workers, sampler=sampler)
 
 
 if __name__ == '__main__':

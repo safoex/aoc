@@ -4,8 +4,13 @@ venv/*
 *.log
 mitmpose/model/reconstructions/
 *.npy
-mitmpose/model/so3/__pycache__/
-mitmpose/model/so3/test_save*/
+**/__pycache__/
+mitmpose/model/pose/__pycache__/
+mitmpose/model/pose/aae/__pycache__/
+mitmpose/model/pose/codebooks/__pycache__/
+mitmpose/model/pose/datasets/__pycache__/
+mitmpose/model/pose/grids/__pycache__/
+mitmpose/model/pose/test_save*/
 mitmpose/__pycache__/
 mitmpose/model/__pycache__/
 mitmpose/model/classification/__pycache__/
@@ -15,3 +20,4 @@ mitmpose.egg-info/
 mitmpose/model/saved
 lightning_logs/
 *.pt[h]
+mitm/

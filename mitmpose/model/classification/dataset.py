@@ -1,13 +1,8 @@
-import numpy as np
-import torch
 from torch.utils.data import Dataset
-from mitmpose.model.so3.grids import Grid
-from mitmpose.model.so3 import ObjectRenderer
-from mitmpose.model.so3.dataset import RenderedDataset
-from mitmpose.model.so3.augment import AugmentedDataset, AAETransform
-from mitmpose.model.so3.aae import AEDataModule, AAE
-from tqdm import tqdm
-import os
+from mitmpose.model.pose.grids.grids import Grid
+from mitmpose.model.pose.datasets.augment import AAETransform
+from mitmpose.model.pose.datasets.dataset import OnlineRenderDataset, RenderedDataset, AugmentedAndRenderedDataset
+from mitmpose.model.pose.aae.aae import AEDataModule, AAE
 from torchvision import transforms
 import pytorch_lightning as pl
 
@@ -21,8 +16,27 @@ class ManyObjectsRenderedDataset(Dataset):
         # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
 
-    def __init__(self, grider: Grid, models: dict, aae_render_tranform, classification_transform=default_transform, res=128, camera_dist=0.5,
-                 render_res=640, intensity_render=10, intensity_augment=(2, 20), n_aug_workers=4):
+    transform_normalize = transforms.Compose([
+        transforms.ToPILImage(),
+        transforms.RandomApply([
+            transforms.Resize(236),
+            transforms.RandomAffine(20, (0.1, 0.1), (0.9, 1.1)),
+            transforms.RandomCrop(224),
+        ], 0.5),
+        transforms.Resize(224),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    ])
+
+    transform_inference = transforms.Compose([
+        # transforms.ToPILImage(),
+        transforms.Resize(224),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    ])
+
+    def __init__(self, grider: Grid, models: dict, aae_render_tranform, classification_transform=None, res=128, camera_dist=None,
+                 render_res=640, intensity_render=10, intensity_augment=(2, 20), online=False, aae_scale_factor=1.2):
         self.grider = grider
         self.models = models
         self._datasets = None
@@ -30,14 +44,21 @@ class ManyObjectsRenderedDataset(Dataset):
             'camera_dist': camera_dist,
             'render_res': render_res,
             'res': res,
-            'intensity_render': intensity_render,
+            'intensity_reconstruction': intensity_render,
             'intensity_augment': intensity_augment,
-            'n_workers': n_aug_workers
+            'augmenter': aae_render_tranform,
+            'aae_scale_factor': aae_scale_factor
         }
         self.labels = {}
-        self.transform = classification_transform
+        self.transform = classification_transform or self.default_transform
         self.aae_render_transform = aae_render_tranform
         self.mode = 'class'
+        self.class_ds = AugmentedAndRenderedDataset
+
+        self.online = online
+        if self.online:
+            self.default_params['aug_class'] = OnlineRenderDataset
+
 
     @property
     def datasets(self):
@@ -47,8 +68,7 @@ class ManyObjectsRenderedDataset(Dataset):
             for model_name, params in self.models.items():
                 mparams = self.default_params.copy()
                 mparams.update(params)
-                mparams['transform'] = self.aae_render_transform
-                self.datasets[model_name] = AugmentedDataset(self.grider, **mparams)
+                self._datasets[model_name] = self.class_ds(self.grider, **mparams)
                 self.labels[model_name] = label
                 label += 1
         return self._datasets
@@ -78,7 +98,10 @@ class ManyObjectsRenderedDataset(Dataset):
         assert obj is not None
 
         if self.mode == 'class':
-            return self.transform(self.datasets[obj][idx][-1]), self.labels[obj]
+            ds_idx = -1
+            if self.online:
+                ds_idx = 0
+            return self.transform(self.datasets[obj][idx][ds_idx]), self.labels[obj]
         else:
             return self.datasets[obj][idx]
 
@@ -92,7 +115,7 @@ if __name__ == '__main__':
     ds = ManyObjectsRenderedDataset(grider, models,
                                     aae_render_tranform=AAETransform(0.5, '/home/safoex/Documents/data/VOCtrainval_11-May-2012', add_aug=False))
     ds.set_mode('aae')
-    ds.load_dataset(workdir)
+    ds.create_dataset(workdir)
 
     trainer = pl.Trainer(gpus=1, max_epochs=100)
 
