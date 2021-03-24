@@ -1,4 +1,4 @@
-# ML part for Active Pose Estimation and Classification for Ambigous Objects
+#Active Pose Estimation and Classification for Ambiguous Objects
 
 ## Augmented Autoencoder:
 

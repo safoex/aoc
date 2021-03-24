@@ -4,14 +4,14 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="mitmpose",
+    name="aoc",
     version="0.0.0",
     author="IIT",
     author_email="evgenii.safronov@iit.it",
-    description="Panda project: scene identification module",
+    description="Ambiguous Object Classification module",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/safoex/mitmpose",
+    url="https://github.com/safoex/aoc",
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",
