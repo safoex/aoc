@@ -9,7 +9,3 @@
 ## Codebooks:
 
 ## Classification:
-
-
-
-to train AAE check out [aae.py](mitmpose/model/pose/aae/aae.py)

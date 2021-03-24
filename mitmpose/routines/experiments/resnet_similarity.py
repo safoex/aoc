@@ -33,5 +33,7 @@ if __name__ == "__main__":
 
 
     # print(resnet_loss)
+    plt.figure(figsize=(4, 5))
 
-    abe.plot_comparison(resnet_loss, "ResNet based", "babyfood")
+    abe.plot_comparison(resnet_loss, "CNN embedding", "ResNet", thickness=3)
+    plt.savefig('/home/safoex/Documents/docs/writings/ambiguousobjectspaper/images/plots/resnet.png')

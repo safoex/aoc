@@ -50,6 +50,8 @@ class AAEBaselineExperiment:
 
         self.plotted_once = False
 
+        self.plot_label_pattern = "scaled %s similarity"
+
     def get_images(self):
         return self.obj1, self.obj2
 
@@ -62,7 +64,7 @@ class AAEBaselineExperiment:
         plt.legend()
         plt.show()
 
-    def plot_comparison(self, loss, similarity_name, title_name):
+    def plot_comparison(self, loss, similarity_name, title_name, thickness=1):
         scale_labeler = np.max(self.labeler_loss) - np.min(self.labeler_loss)
         scale_loss = np.max(loss) - np.min(loss)
 
@@ -72,11 +74,11 @@ class AAEBaselineExperiment:
         plt.title(title_name)
         plt.plot((loss - zero_loss) / scale_loss * scale_labeler + zero_labeler,
                  label="scaled %s similarity" % similarity_name)
-        plt.plot(self.labeler_loss, label="AAE similarity")
+        plt.plot(self.labeler_loss, label="AAE similarity", linewidth=thickness)
         plt.legend()
-        plt.show()
+        # plt.show()
 
-    def plot_one_of_many(self, loss, similarity_name, title_name):
+    def plot_one_of_many(self, loss, similarity_name, title_name, self_label=None, try_plot_self=True):
         scale_labeler = np.max(self.labeler_loss) - np.min(self.labeler_loss)
         scale_loss = np.max(loss) - np.min(loss)
 
@@ -84,11 +86,11 @@ class AAEBaselineExperiment:
         zero_loss = np.min(loss)
 
         plt.plot((loss - zero_loss) / scale_loss * scale_labeler + zero_labeler,
-                 label="scaled %s similarity" % similarity_name)
+                 label=self.plot_label_pattern % similarity_name)
 
-        if not self.plotted_once:
+        if not self.plotted_once and try_plot_self:
             plt.title(title_name)
-            plt.plot(self.labeler_loss, label="AAE similarity")
+            plt.plot(self.labeler_loss, label=self_label or "AAE similarity")
             self.plotted_once = True
 
         plt.legend()
@@ -118,6 +120,7 @@ if __name__ == "__main__":
     abe = AAEBaselineExperiment(models_dir, models_names, workdir, ae_path, N)
 
     abe.plot_solo("aae solo")
+
 
 # # models_dir = '/home/safoex/Downloads/cat_food/models_fixed/'
 # # models_names = ['tonno_low', 'pollo', 'polpa']
@@ -169,7 +172,7 @@ if __name__ == "__main__":
 # loss = [np.linalg.norm(i1 - i2) / np.sum((i1 - i2) > 0) for i1, i2 in zip(obj1, obj2)]
 #
 # loss = np.load("/home/safoex/Downloads/babymilk.npy")
-#
+
 # labeler_res = np.sort(labeler._smoothen[:, i_from, i_to].cpu().numpy())
 # scale_labeler = np.max(labeler_res) - np.min(labeler_res)
 # scale_loss = np.max(loss) - np.min(loss)

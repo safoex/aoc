@@ -6,12 +6,12 @@ import os
 workdir = '/home/safoex/Documents/data/aae/release2/release2'
 classes = {'babyfood': ['meltacchin', 'melpollo'],
            'babymilk': ['humana1', 'humana2']}
-
-classes = {'redboxes': ['tiramisu', 'pistacchi'],
-           'yellowboxes': ['cioccolato', 'vaniglia']}
-
-classes = {'yellowboxes': ['cioccolato', 'vaniglia']}
-classes = {'redboxes': ['tiramisu', 'pistacchi']}
+#
+# classes = {'redboxes': ['tiramisu', 'pistacchi'],
+#            'yellowboxes': ['cioccolato', 'vaniglia']}
+#
+# classes = {'yellowboxes': ['cioccolato', 'vaniglia']}
+# classes = {'redboxes': ['tiramisu', 'pistacchi']}
 
 # classes = {'babymilk': ['humana1', 'humana2']}
 
@@ -80,10 +80,10 @@ def plot_results(some_results, title, threshold, labels=True, baseline=True, col
                    np.sum([1 for x, r in some_results if x <= x0])
 
     plt.ylabel('correct classification probability')
-    plt.xlabel('for view ambiguity ranks less than X')
+    plt.xlabel('tested on recorded data that hold $rank(R^A_i) \leq x$ ')
     if fix_y_dims is not None:
         plt.ylim(fix_y_dims)
-    plt.title('%s of dataset\ntaking %s of ambiguity ranks (assuming two different models)' % (threshold, title))
+    plt.title('trained on $rank(R^A_i) \leq %.2f$' % threshold)
     lbl = 'success probability for rank less than (x)'
     if starting_from > 0:
         X = X[starting_from:]
@@ -92,12 +92,12 @@ def plot_results(some_results, title, threshold, labels=True, baseline=True, col
         lbl = labels
     if labels is None:
         lbl = None
+    if baseline:
+        plt.plot(X, 0.5 * np.ones_like(X), 'black', label='0.5 prob baseline' if labels else None)
     if color:
         plt.plot(X, Y, color, label=lbl)
     else:
         plt.plot(X, Y, label=lbl)
-    if baseline:
-        plt.plot(X, 0.5 * np.ones_like(X), 'black', label='0.5 prob baseline' if labels else None)
     if legend:
         plt.legend()
     return Y
@@ -137,17 +137,17 @@ def plot_results_from_array(results_array, func_name, title, threshold, labels=N
 
 
 # results_file = '/home/safoex/Documents/data/results.pickle'
-results_file = '/home/safoex/Documents/data/results_28_02_2021.pickle'
+results_file = '/home/safoex/Documents/data/results_24_02_2021.pickle'
 
 with open(results_file, 'rb') as f:
     results_dict = pickle.load(f)
 
 # plot_results(proc_results_f(results_dict[2][0.4])['average'], 0.5, 'aga')
-figfolder = '/home/safoex/Documents/data/aae/draw/28'
-figpath = figfolder + "/inference2_0%d.png"
+# figfolder = '/home/safoex/Documents/data/aae/draw/24'
+# figpath = figfolder + "/inference2_0%d.png"
 
-# figfolder = '/home/safoex/Documents/docs/writings/ambiguousobjectspaper/images/plots/28'
-# figpath = figfolder + '/inference2_0%d.pdf'
+figfolder = '/home/safoex/Documents/docs/writings/ambiguousobjectspaper/images/plots/24'
+figpath = figfolder + '/inference2_0%d.png'
 if not os.path.exists(figfolder):
     os.mkdir(figfolder)
 
@@ -158,20 +158,22 @@ if not os.path.exists(figfolder):
 # plt.show()
 
 lessthan_performance = {k:list() for k in lessthan}
-last_threshold_ = 0.7
-last_threshold = int(last_threshold_ * 20)
-for t in range(3, last_threshold):
+last_threshold_ = 0.95
+last_threshold = int(last_threshold_ * 20) + 1
+plt.figure(figsize=(4,4))
+starting_threshold_int = 3
+for t in range(starting_threshold_int, last_threshold):
     threshold = t / 20.0
     epochs_range = list(range(1, 9))
     perf_lessthan = plot_results_from_array([results_dict[i][threshold] for i in epochs_range], 'average', 'average', threshold,
-                            labels=["after epoch=%d" % i for i in epochs_range], legend=True, half_line=True)#, color='red')
+                            labels=["after epoch=%d" % i for i in epochs_range], legend=t == starting_threshold_int, half_line=True)#, color='red')
     for l, p in zip(lessthan, perf_lessthan):
         lessthan_performance[l].append(p)
     plt.savefig(figpath % int(threshold * 100))
     plt.clf()
 
 threshold_list = np.array(list(range(3,last_threshold))) / 20.0
-
+plt.figure(figsize=(7,4))
 for k, perf in lessthan_performance.items():
     plt.plot(threshold_list, perf, label='r < %.1f' % k)
 plt.legend()

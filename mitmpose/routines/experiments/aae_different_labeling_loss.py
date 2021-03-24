@@ -21,11 +21,17 @@ if __name__ == "__main__":
     abe_bad_loss[0::2] = abe_bad.labeler_loss
     abe_bad_loss[1::2] = abe_bad.labeler_loss
     # abe.plot_comparison(abe_bad_loss, "AAE with less gradient steps", "aae_bad")
-    abe.plot_one_of_many(abe_bad_loss, "AAE 10", "Different grad steps")
-    abe.plot_one_of_many(abe_bad7.labeler_loss, "AAE 7", "Different grad steps")
-    abe.plot_one_of_many(abe_bad13.labeler_loss, "AAE 13", "Different grad steps")
+    plt.figure(figsize=(4.5,4.5))
+    title = "Different number of descent steps"
+    plt.xlim([55, 165])
+    plt.ylim([0.9965, 1.0005])
+    abe.plot_label_pattern = "%s"
+    abe.plot_one_of_many(abe_bad_loss, "10 steps", title, try_plot_self=False)
+    # abe.plot_one_of_many(abe_bad7.labeler_loss, "7 steps", title, self_label="20 steps")
+    abe.plot_one_of_many(abe_bad13.labeler_loss, "13 steps", title, self_label="20 steps")
 
-    plt.show()
+    # plt.show()
+    plt.savefig('/home/safoex/Documents/docs/writings/ambiguousobjectspaper/images/plots/aae_mustard_baseline_2.png')
 
 # # models_dir = '/home/safoex/Downloads/cat_food/models_fixed/'
 # # models_names = ['tonno_low', 'pollo', 'polpa']

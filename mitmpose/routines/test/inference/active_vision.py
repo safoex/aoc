@@ -60,6 +60,8 @@ if __name__ == "__main__":
     ambiguity_threshold = 0.01
     ambiguity_threshold_av = 0.25
     
+    sleep_between = 0
+
     with_baseline = False
     DEBUG=False
 
@@ -92,6 +94,8 @@ if __name__ == "__main__":
         #try:
         results = []
         while ambiguity > ambiguity_threshold and j < jump_limit:
+            if sleep_between > 0:
+                time.sleep(sleep_between)
             image_path = image_pattern % j
             idx_path = input_idx_pattern % j
             if DEBUG:
