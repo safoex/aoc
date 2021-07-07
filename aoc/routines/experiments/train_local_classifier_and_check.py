@@ -1,6 +1,6 @@
 print('i can print')
 
-from mitmpose.routines.test.inference.offline_experiment import InferenceOfflineExperiment, Grid
+from aoc.routines.test.inference.offline_experiment import InferenceOfflineExperiment, Grid
 import torch
 
 workdir = '/home/safoex/Documents/data/aae/release2/release2'

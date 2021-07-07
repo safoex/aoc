@@ -1,5 +1,5 @@
-from mitmpose.model.pose.datasets.dataset import RenderedDataset
-from mitmpose.routines.test.settings import *
+from aoc.model.pose.datasets.dataset import RenderedDataset
+from aoc.routines.test.settings import *
 import numpy as np
 import os
 

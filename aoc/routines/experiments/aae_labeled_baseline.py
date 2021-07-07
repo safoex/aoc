@@ -1,4 +1,4 @@
-from mitmpose.model.classification.labeler_ambigous import AmbigousObjectsLabeler, AAE, Grid
+from aoc.model.classification.labeler_ambigous import AmbigousObjectsLabeler, AAE, Grid
 import os
 import torch
 import torchvision
@@ -7,7 +7,7 @@ import numpy as np
 from PIL import Image
 from matplotlib import pyplot as plt
 
-from mitmpose.model.classification.labeler_ambigous import AmbigousObjectsLabeler, AAE, Grid
+from aoc.model.classification.labeler_ambigous import AmbigousObjectsLabeler, AAE, Grid
 import os
 import torch
 import torchvision

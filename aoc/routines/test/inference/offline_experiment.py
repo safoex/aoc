@@ -2,7 +2,7 @@ from .classify import InferenceClassifier, Codebook, OnlineRenderDataset, Grid
 import torch
 import os
 import pickle
-from mitmpose.routines.train.classifiers import Experiment, TrainClassifiers
+from aoc.routines.train.classifiers import Experiment, TrainClassifiers
 from tqdm import tqdm
 
 class InferenceOfflineExperiment(Experiment):

@@ -1,5 +1,5 @@
-from mitmpose.model.classification.dataset import ManyObjectsRenderedDataset, Grid
-from mitmpose.model.classification.labeler_ambigous import AmbigousObjectsLabeler
+from aoc.model.classification.dataset import ManyObjectsRenderedDataset, Grid
+from aoc.model.classification.labeler_ambigous import AmbigousObjectsLabeler
 import torch
 import numpy as np
 import itertools
@@ -123,7 +123,7 @@ class ManyAmbigousObjectsLabeledRenderedDataset(ManyObjectsRenderedDataset):
 
 
 if __name__ == '__main__':
-    from mitmpose.model.pose.aae.aae import AAE, AAETransform
+    from aoc.model.pose.aae.aae import AAE, AAETransform
     import torch
     # models_dir = '/home/safoex/Downloads/cat_food/models_fixed/'
     # models_names = ['tonno_low', 'pollo', 'polpa']
@@ -164,7 +164,7 @@ if __name__ == '__main__':
         img = transforms.ToPILImage()(img).convert("RGB")
         img.save(workdir + '/test%d.png' % i)
 
-    from mitmpose.model.classification.labeler_ambigous import render_and_save
+    from aoc.model.classification.labeler_ambigous import render_and_save
 
     # for i, idx in enumerate(np.random.randint(0, ds._idcs.shape[0], 20)):
     #     ii = ds._idcs[idx][0]

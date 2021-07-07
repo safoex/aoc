@@ -1,8 +1,8 @@
 import numpy as np
 import torch
-from mitmpose.model.pose.grids.grids import Grid
+from aoc.model.pose.grids.grids import Grid
 
-from mitmpose.model.pose.datasets.dataset import RenderedDataset, OnlineRenderDataset
+from aoc.model.pose.datasets.dataset import RenderedDataset, OnlineRenderDataset
 
 from imgaug import augmenters as iaa
 from torchvision.datasets import VOCDetection

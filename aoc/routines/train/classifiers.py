@@ -1,5 +1,5 @@
-from mitmpose.model.classification.dataset_hierarchical import HierarchicalManyObjectsDataset, AAETransform, Grid
-from mitmpose.model.classification.classifier_hierarchical import HierarchicalClassifier
+from aoc.model.classification.dataset_hierarchical import HierarchicalManyObjectsDataset, AAETransform, Grid
+from aoc.model.classification.classifier_hierarchical import HierarchicalClassifier
 import os
 import numpy as np
 from torchvision import transforms

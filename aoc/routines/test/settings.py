@@ -1,4 +1,4 @@
-from mitmpose.model.pose.grids.grids import Grid
+from aoc.model.pose.grids.grids import Grid
 models_dir = '/home/safoex/Documents/data/aae/models/scans'
 models_names = ['fragola', 'pistacchi', 'tiramisu']
 models = {mname: {'model_path': models_dir + '/' + mname + '.obj'} for mname in models_names}

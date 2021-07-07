@@ -1,7 +1,7 @@
-from mitmpose.model.pose.datasets.dataset import AugmentedAndRenderedDataset, OnlineRenderDataset, Grid
-from mitmpose.model.pose.datasets.augment import AAETransform
-from mitmpose.routines.test.settings import *
-from mitmpose.model.pose.aae.aae import AAE, AEDataModule
+from aoc.model.pose.datasets.dataset import AugmentedAndRenderedDataset, OnlineRenderDataset, Grid
+from aoc.model.pose.datasets.augment import AAETransform
+from aoc.routines.test.settings import *
+from aoc.model.pose.aae.aae import AAE, AEDataModule
 import numpy as np
 import os
 import pytorch_lightning as pl

@@ -1,13 +1,13 @@
-from mitmpose.model.pose.aae.aae import AAE
-from mitmpose.model.pose.datasets.dataset import RenderedDataset, IndexedDataset, OnlineRenderDataset
-from mitmpose.model.pose.grids.grids import Grid, GradUniformGrid, AxisSwapGrid
+from aoc.model.pose.aae.aae import AAE
+from aoc.model.pose.datasets.dataset import RenderedDataset, IndexedDataset, OnlineRenderDataset
+from aoc.model.pose.grids.grids import Grid, GradUniformGrid, AxisSwapGrid
 from torch.utils.data import DataLoader
 import torch
 
 from scipy.spatial.transform import Rotation
 from matplotlib import pyplot as plt
 
-from mitmpose.model.pose.render import ObjectRenderer
+from aoc.model.pose.render import ObjectRenderer
 from scipy.stats import special_ortho_group
 import numpy as np
 from tqdm import  tqdm

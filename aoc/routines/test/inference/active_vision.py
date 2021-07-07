@@ -1,4 +1,4 @@
-from mitmpose.routines.test.inference.next_pose_check import *
+from aoc.routines.test.inference.next_pose_check import *
 import sys, pickle
 
 #testclass = 'melpollo'

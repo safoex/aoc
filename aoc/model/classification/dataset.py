@@ -1,8 +1,8 @@
 from torch.utils.data import Dataset
-from mitmpose.model.pose.grids.grids import Grid
-from mitmpose.model.pose.datasets.augment import AAETransform
-from mitmpose.model.pose.datasets.dataset import OnlineRenderDataset, RenderedDataset, AugmentedAndRenderedDataset
-from mitmpose.model.pose.aae.aae import AEDataModule, AAE
+from aoc.model.pose.grids.grids import Grid
+from aoc.model.pose.datasets.augment import AAETransform
+from aoc.model.pose.datasets.dataset import OnlineRenderDataset, RenderedDataset, AugmentedAndRenderedDataset
+from aoc.model.pose.aae.aae import AEDataModule, AAE
 from torchvision import transforms
 import pytorch_lightning as pl
 

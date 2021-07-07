@@ -3,11 +3,11 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
 
-from mitmpose.model.classification.dataset import ManyObjectsRenderedDataset
-from mitmpose.model.classification.dataset_ambigous import ManyAmbigousObjectsLabeledRenderedDataset
-from mitmpose.model.classification.classifier import ObjectClassifierDataModule, ObjectClassifier
-from mitmpose.model.pose.grids.grids import Grid
-from mitmpose.model.pose.datasets.augment import AAETransform
+from aoc.model.classification.dataset import ManyObjectsRenderedDataset
+from aoc.model.classification.dataset_ambigous import ManyAmbigousObjectsLabeledRenderedDataset
+from aoc.model.classification.classifier import ObjectClassifierDataModule, ObjectClassifier
+from aoc.model.pose.grids.grids import Grid
+from aoc.model.pose.datasets.augment import AAETransform
 
 import pytorch_lightning as pl
 

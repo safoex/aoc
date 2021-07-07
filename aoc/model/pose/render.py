@@ -6,7 +6,7 @@ import numpy as np
 import trimesh
 import pyrender
 from PIL import Image
-from mitmpose.model.pose.grids.grids import fibonacci_sphere_rot
+from aoc.model.pose.grids.grids import fibonacci_sphere_rot
 import scipy
 
 import torch
@@ -14,7 +14,7 @@ from torchvision import transforms
 
 
 class ObjectRenderer:
-    def __init__(self, path, camera_dist=0.5, res_side=640, intensity=(3,20), target_res=128, aae_scale_factor=1.2):
+    def __init__(self, path, camera_dist=0.5, res_side=640, intensity=(3, 20), target_res=128, aae_scale_factor=1.2):
         tmesh = trimesh.load(path)
         self.mesh_size = scipy.linalg.norm(np.array(tmesh.bounding_box_oriented.extents))
         self.camera_dist_coefficient = 1.5

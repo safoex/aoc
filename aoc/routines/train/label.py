@@ -1,4 +1,4 @@
-from mitmpose.model.classification.labeler_ambigous import *
+from aoc.model.classification.labeler_ambigous import *
 import sys
 
 

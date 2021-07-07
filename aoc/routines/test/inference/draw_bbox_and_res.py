@@ -1,5 +1,5 @@
-from mitmpose.routines.test.inference.next_pose import *
-from mitmpose.model.classification.dataset_hierarchical import *
+from aoc.routines.test.inference.next_pose import *
+from aoc.model.classification.dataset_hierarchical import *
 import shutil
 from torchvision import transforms as T
 import pickle

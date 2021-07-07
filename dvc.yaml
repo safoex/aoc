@@ -1,0 +1,87 @@
+stages:
+  train-aae-foodboxes:
+    desc: Train AAE for foodboxes
+    cmd: python aoc/routines/train_aae.py --config configs/foodboxes.yaml --out models/foodboxes/multi256.pth --seed 666 --gpu 0
+    deps:
+      - aoc
+      - aod/models3d/foodboxes
+    outs:
+      - models/foodboxes/multi_object_aae.pth
+    params:
+      - configs/foodboxes.yaml:
+          - latent_size
+          - n_epochs
+          - training_grid_sphere_size
+          - training_grid_in_plane_size
+          - batch_size
+  create-codebooks-foodboxes:
+    desc: Create codebooks for foodboxes
+    cmd: python aoc/routines/create_codebooks.py --config configs/foodboxes.yaml --out_dir models/foodboxes --seed 666 --gpu 0
+    deps:
+      - aoc
+      - aod/models3d/foodboxes
+      - models/foodboxes/multi_object_aae.pth
+    outs:
+      - models/foodboxes/codebooks/turkey.pt
+      - models/foodboxes/codebooks/chicken.pt
+    params:
+      - configs/foodboxes.yaml:
+          - latent_size
+          - training_grid_sphere_size
+          - training_grid_in_plane_size
+          - codebook_batch_size
+  ambiguity-ranking-foodboxes:
+    desc: Estimate ambiguity of objects in foodboxes
+    cmd: python aoc/routines/ambiguity_ranking.py --config configs/foodboxes.yaml --out_dir models/foodboxes --seed 666 --gpu 0
+    deps:
+      - aoc
+      - aod/models3d/foodboxes
+      - models/foodboxes/multi_object_aae.pth
+      - models/foodboxes/codebooks/turkey.pt
+      - models/foodboxes/codebooks/chicken.pt
+    outs:
+      - models/foodboxes/ambiguity.pt
+    params:
+      - configs/foodboxes.yaml:
+        - latent_size
+        - grid_sphere_size
+        - grid_in_plane_size
+        - ambiguity_grid_sphere_size
+        - ambiguity_ranking_search_steps
+        - ambiguity_ranking_exp_shrink_each_step
+  train-classifiers-foodboxes:
+    desc: Train classifiers between objects in ambiguous group foodboxes
+    cmd: python aoc/routines/train_in_group_classifiers.py --config configs/foodboxes.yaml --out_dir models/foodboxes --seed 666 --gpu 0
+    deps:
+      - aoc
+      - aod/models3d/foodboxes
+      - models/foodboxes/ambiguity.pt
+    outs:
+      - models/foodboxes/classifiers
+    params:
+      - configs/foodboxes.yaml:
+        - ambiguity_grid_sphere_size
+        - in_group_classifier_grid_sphere_size
+        - in_group_classifier_grid_in_plane_size
+        - in_group_classifier_epochs_range
+        - in_group_classifier_ambiguity_thresholds_range
+
+  cache-recorded-data-bounding-boxes-foodboxes:
+    desc: Cache bounding boxes for images on recorded data
+    cmd: python aoc/routines/cache_bounding_boxes.py --config configs/foodboxes.yaml --out_dir models/foodboxes --seed 666 --gpu 0
+    deps:
+      - aoc
+      - models/shared/object_detector.pth
+    outs:
+      - data/foodboxes/bounding_boxes.npy
+
+
+  test-and-choose-classifiers-foodboxes:
+    desc: Test classifiers on recorded data for foodboxes
+    cmd: python aoc/routines/test_in_group_classifiers.py --config configs/foodboxes.yaml --out_dir models/foodboxes --seed 666 --gpu 0
+    deps:
+      - aoc
+      - models/foodboxes/ambiguity.pt
+      - models/foodboxes/classifiers
+      - aod/val/foodboxes
+      -

@@ -2,6 +2,7 @@ venv/*
 .idea/*
 *.json
 *.log
+*.sif
 mitmpose/model/reconstructions/
 *.npy
 **/__pycache__/
@@ -16,7 +17,7 @@ mitmpose/model/__pycache__/
 mitmpose/model/classification/__pycache__/
 build/
 dist/
-mitmpose.egg-info/
+*.egg-info/
 mitmpose/model/saved
 lightning_logs/
 *.pt[h]

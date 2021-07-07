@@ -5,11 +5,11 @@ import cv2
 from matplotlib import pyplot as plt
 import numpy as np
 import torch
-from mitmpose.model.pose.aae.aae import AAETransform, AAE
-from mitmpose.model.classification.classifier_hierarchical import HierarchicalClassifier, \
+from aoc.model.pose.aae.aae import AAETransform, AAE
+from aoc.model.classification.classifier_hierarchical import HierarchicalClassifier, \
     HierarchicalManyObjectsDataset, Grid
 from scipy.spatial.transform import Rotation
-from mitmpose.model.pose.codebooks.codebook import Codebook, OnlineRenderDataset
+from aoc.model.pose.codebooks.codebook import Codebook, OnlineRenderDataset
 import os, sys
 import pickle
 

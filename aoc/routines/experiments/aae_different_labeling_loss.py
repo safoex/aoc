@@ -1,4 +1,4 @@
-from mitmpose.routines.experiments.aae_labeled_baseline import *
+from aoc.routines.experiments.aae_labeled_baseline import *
 
 
 if __name__ == "__main__":

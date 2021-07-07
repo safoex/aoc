@@ -1,6 +1,6 @@
-from mitmpose.model.classification.classifier_hierarchical import HierarchicalClassifier
-from mitmpose.routines.test.inference.classify import InferenceClassifier
-from mitmpose.model.pose.codebooks.codebook import *
+from aoc.model.classification.classifier_hierarchical import HierarchicalClassifier
+from aoc.routines.test.inference.classify import InferenceClassifier
+from aoc.model.pose.codebooks.codebook import *
 
 import numpy as np
 from scipy.spatial.transform import Rotation

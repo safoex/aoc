@@ -1,4 +1,4 @@
-from mitmpose.model.classification.dataset import ManyObjectsRenderedDataset, Grid
+from aoc.model.classification.dataset import ManyObjectsRenderedDataset, Grid
 import torch
 
 

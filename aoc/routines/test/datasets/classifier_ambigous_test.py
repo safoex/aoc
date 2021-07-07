@@ -1,7 +1,7 @@
-from mitmpose.model.classification.classifier_ambigous import *
+from aoc.model.classification.classifier_ambigous import *
 from torchvision import transforms
-from mitmpose.model.pose.aae.aae import AAE
-from mitmpose.routines.test.settings import *
+from aoc.model.pose.aae.aae import AAE
+from aoc.routines.test.settings import *
 
 from matplotlib import pyplot as plt
 

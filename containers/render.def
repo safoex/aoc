@@ -1,0 +1,32 @@
+
+Bootstrap: docker
+From: nytimes/blender:latest
+
+%post
+    # update
+    apt-get -y update
+    # install essentials - python3.7 and git
+    apt-get -y install python3.7 python3-pip git python3.7-dev
+
+
+    # install required libraries
+    # apt-get -y install freeglut3-dev libglfw3-dev
+    # apt-get install -y 	wget libopenexr-dev 	bzip2 	build-essential zlib1g-dev libxmu-dev libxi-dev libxxf86vm-dev libfontconfig1 	libxrender1 libgl1-mesa-glx xz-utils
+
+
+    # pipenv is used to maintain virtual environment outside the container
+    pip3 install pipenv
+
+    # install blendtorch for blender
+    git clone https://github.com/cheind/pytorch-blender.git blendtorch
+    blender --background --python blendtorch/scripts/install_btb.py
+
+
+
+%environment
+    # Pipenv requires a certain terminal encoding.
+    export LANG=C.UTF-8
+    export LC_ALL=C.UTF-8
+    # This configures Pipenv to store the packages in the current working
+    # directory.
+    export PIPENV_VENV_IN_PROJECT=1

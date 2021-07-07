@@ -1,6 +1,6 @@
-from mitmpose.model.classification.dataset import *
-from mitmpose.model.pose.codebooks.codebook import Codebook
-from mitmpose.model.pose.datasets.dataset import OnlineRenderDataset
+from aoc.model.classification.dataset import *
+from aoc.model.pose.codebooks.codebook import Codebook
+from aoc.model.pose.datasets.dataset import OnlineRenderDataset
 import torch
 import itertools
 import os

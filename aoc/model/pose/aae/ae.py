@@ -3,10 +3,10 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torchsummary import summary
 
-from mitmpose.model.pose import EncoderCNN
-from mitmpose.model.pose.aae.decoder import Decoder
-from mitmpose.model.pose.datasets.dataset import RenderedDataset
-from mitmpose.model.pose.datasets.augment import print_batch
+from aoc.model.pose import EncoderCNN
+from aoc.model.pose.aae.decoder import Decoder
+from aoc.model.pose.datasets.dataset import RenderedDataset
+from aoc.model.pose.datasets.augment import print_batch
 
 from torch.utils.data import DataLoader
 
@@ -48,7 +48,7 @@ class AE(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         x, m, p = batch
-        x_hat = ae.forward(x)
+        x_hat = self.forward(x)
         loss = self.loss_aae(x, x_hat, bootstrap_ratio=4)
         result = pl.TrainResult(loss)
         result.log('AE reconstruction loss', loss, prog_bar=True)

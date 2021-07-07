@@ -1,7 +1,7 @@
-from mitmpose.routines.test.settings import *
-from mitmpose.model.pose.aae.aae import AAE, AEDataModule
-from mitmpose.model.pose.datasets.dataset import OnlineRenderDataset, Grid
-from mitmpose.model.pose.codebooks.codebook import *
+from aoc.routines.test.settings import *
+from aoc.model.pose.aae.aae import AAE, AEDataModule
+from aoc.model.pose.datasets.dataset import OnlineRenderDataset, Grid
+from aoc.model.pose.codebooks.codebook import *
 import numpy as np
 import os
 import pytorch_lightning as pl

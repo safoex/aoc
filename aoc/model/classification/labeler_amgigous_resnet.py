@@ -1,5 +1,5 @@
-from mitmpose.model.classification.dataset import *
-from mitmpose.model.pose.datasets.dataset import OnlineRenderDataset
+from aoc.model.classification.dataset import *
+from aoc.model.pose.datasets.dataset import OnlineRenderDataset
 import torch
 import itertools
 from tqdm.auto import trange, tqdm
